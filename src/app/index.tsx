@@ -1,17 +1,10 @@
 
+import RecipeButton from '@/components/ui/recipe-button';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
-
-import RecipeButton from '@/components/ui/recipe-button';
-import BottomNavigation, {
-  TabName,
-} from '@/components/ui/bottom-navigation';
 
 export default function HomeScreen() {
 
-  const [activeTab, setActiveTab] =
-  useState<TabName>('Accueil');
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>

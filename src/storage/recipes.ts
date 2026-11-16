@@ -1,135 +1,180 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-// Adaptez ce chemin à l'endroit où vous avez placé l'interface Recipe
-import type { NewRecipe, Recipe, RecipeUpdate, StoredRecipe } from "../types/recipe";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  DocumentData,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+// Adaptez ces chemins à votre arborescence
+import type { NewRecipe, Recipe, RecipeUpdate } from "../types/recipe";
+import {
+  deletePhotoForRecipe,
+  getLocalPhotoUri,
+  savePhotoForRecipe,
+} from "../utils/photos";
+import { auth, db } from "./firebase";
 
-const STORAGE_KEY = "recipes";
+/*
+ * Prérequis : ajouter `hasPhoto?: boolean` à l'interface Recipe.
+ *
+ * Répartition des données :
+ *  - Firestore (collection "recipes") : tout sauf la photo, plus un indicateur `hasPhoto`.
+ *  - Téléphone : la photo, dans photos/<recipeId>.jpg (voir utils/photos.ts).
+ * Recipe.photoUri n'est donc jamais écrit dans Firestore : il est recalculé à chaque lecture.
+ */
 
-const toStored = (recipe: Recipe): StoredRecipe => ({
-  ...recipe,
-  createdAt: recipe.createdAt.toISOString(),
-  updatedAt: recipe.updatedAt.toISOString(),
-});
+const recipesRef = collection(db, "recipes");
 
-const fromStored = (stored: StoredRecipe): Recipe => ({
-  ...stored,
-  createdAt: new Date(stored.createdAt),
-  updatedAt: new Date(stored.updatedAt),
-});
-
-const generateId = (): string =>
-  `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+function requireUid(): string {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Vous devez être connecté.");
+  return user.uid;
+}
 
 const cleanIngredients = (ingredients: string[]): string[] =>
   ingredients.map((i) => i.trim()).filter((i) => i.length > 0);
 
-/**
- * File d'attente : AsyncStorage ne gère pas les écritures concurrentes.
- * Sans elle, deux enregistrements rapprochés peuvent s'écraser (lecture, modification, écriture).
- */
-let queue: Promise<unknown> = Promise.resolve();
-function enqueue<T>(task: () => Promise<T>): Promise<T> {
-  const result = queue.then(task);
-  queue = result.catch(() => undefined);
-  return result;
+const toDate = (value: unknown): Date =>
+  value instanceof Timestamp ? value.toDate() : new Date();
+
+const isPermissionDenied = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  (error as { code?: string }).code === "permission-denied";
+
+function toRecipe(id: string, data: DocumentData): Recipe {
+  return {
+    id,
+    userId: auth.currentUser!.uid,
+    title: data.title,
+    description: data.description ?? "",
+    ingredients: data.ingredients ?? [],
+    latitude: data.latitude,
+    longitude: data.longitude,
+    placeName: data.placeName,
+    hasPhoto: data.hasPhoto ?? false,
+    photoUri: getLocalPhotoUri(id), // undefined sur un téléphone qui n'a pas la photo
+    createdAt: toDate(data.createdAt),
+    updatedAt: toDate(data.updatedAt),
+  };
 }
 
-async function readAll(): Promise<StoredRecipe[]> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    // On lève une erreur plutôt que de renvoyer [] : sinon la prochaine écriture effacerait les données.
-    throw new Error("Les données des recettes sont corrompues.");
-  }
-  if (!Array.isArray(parsed)) {
-    throw new Error("Format des données des recettes invalide.");
-  }
-  return parsed as StoredRecipe[];
-}
-
-async function writeAll(recipes: StoredRecipe[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
-}
-
-/** Toutes les recettes, de la plus récente à la plus ancienne. */
+/** Recettes de l'utilisateur connecté, de la plus récente à la plus ancienne. */
 export async function getRecipes(): Promise<Recipe[]> {
-  const stored = await readAll();
-  return stored
-    .map(fromStored)
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const uid = requireUid();
+  // Le filtre sur userId est obligatoire : les règles de sécurité refusent une requête plus large.
+  // Cette requête demande un index composite : Firestore affiche un lien pour le créer au premier appel.
+  const q = query(recipesRef, where("userId", "==", uid), orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => toRecipe(d.id, d.data()));
 }
 
-/** Une recette par id, ou null si elle n'existe pas. */
+/** Une recette par id, ou null si elle n'existe pas ou n'est pas accessible. */
 export async function getRecipeById(id: string): Promise<Recipe | null> {
-  const stored = await readAll();
-  const found = stored.find((r) => r.id === id);
-  return found ? fromStored(found) : null;
+  try {
+    const snapshot = await getDoc(doc(db, "recipes", id));
+    return snapshot.exists() ? toRecipe(snapshot.id, snapshot.data()) : null;
+  } catch (error) {
+    // Un id inexistant est refusé par les règles (resource est null) : on le traite comme « introuvable ».
+    if (isPermissionDenied(error)) return null;
+    throw error;
+  }
 }
 
-/** Sauvegarde une nouvelle recette et la renvoie avec son id et ses dates. */
-export function createRecipe(data: NewRecipe): Promise<Recipe> {
+/** Crée la recette dans Firestore et copie sa photo sur le téléphone. */
+export async function createRecipe(data: NewRecipe): Promise<Recipe> {
+  const uid = requireUid();
   const title = data.title.trim();
-  if (!title) {
-    return Promise.reject(new Error("Le titre est obligatoire."));
+  if (!title) throw new Error("Le titre est obligatoire.");
+
+  const { photoUri, ...fields } = data;
+  const description = fields.description.trim();
+  const ingredients = cleanIngredients(fields.ingredients);
+
+  const ref = doc(recipesRef); // l'id est généré côté client, avant l'écriture
+  const localPhotoUri = photoUri ? await savePhotoForRecipe(ref.id, photoUri) : undefined;
+
+  try {
+    await setDoc(ref, {
+      ...fields,
+      title,
+      description,
+      ingredients,
+      userId: uid,
+      isPublic: false,
+      hasPhoto: !!localPhotoUri,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    deletePhotoForRecipe(ref.id); // annule la copie locale si l'écriture échoue
+    throw error;
   }
 
-  return enqueue(async () => {
-    const now = new Date();
-    const recipe: Recipe = {
-      ...data,
-      id: generateId(),
-      title,
-      description: data.description.trim(),
-      ingredients: cleanIngredients(data.ingredients),
-      createdAt: now,
-      updatedAt: now,
-    };
-    const stored = await readAll();
-    await writeAll([...stored, toStored(recipe)]);
-    return recipe;
-  });
+  const now = new Date();
+  return {
+    ...fields,
+    id: ref.id,
+    title,
+    description,
+    ingredients,
+    hasPhoto: !!localPhotoUri,
+    photoUri: localPhotoUri,
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
-/** Met à jour une recette. Renvoie null si l'id est inconnu. */
-export function updateRecipe(
+/** Met à jour une recette. Renvoie null si elle est introuvable. */
+export async function updateRecipe(
   id: string,
   changes: RecipeUpdate
 ): Promise<Recipe | null> {
-  return enqueue(async () => {
-    const stored = await readAll();
-    const index = stored.findIndex((r) => r.id === id);
-    if (index === -1) return null;
+  const current = await getRecipeById(id);
+  if (!current) return null;
 
-    const current = fromStored(stored[index]);
-    const updated: Recipe = {
-      ...current,
-      ...changes,
-      title: changes.title !== undefined ? changes.title.trim() : current.title,
-      ingredients:
-        changes.ingredients !== undefined
-          ? cleanIngredients(changes.ingredients)
-          : current.ingredients,
-      id: current.id,
-      createdAt: current.createdAt,
-      updatedAt: new Date(),
-    };
-    if (!updated.title) throw new Error("Le titre est obligatoire.");
+  const { photoUri, ...fields } = changes;
+  const patch: Record<string, unknown> = {};
 
-    stored[index] = toStored(updated);
-    await writeAll(stored);
-    return updated;
-  });
+  if (fields.title !== undefined) {
+    const title = fields.title.trim();
+    if (!title) throw new Error("Le titre est obligatoire.");
+    patch.title = title;
+  }
+  if (fields.description !== undefined) patch.description = fields.description.trim();
+  if (fields.ingredients !== undefined) patch.ingredients = cleanIngredients(fields.ingredients);
+  if (fields.latitude !== undefined) patch.latitude = fields.latitude;
+  if (fields.longitude !== undefined) patch.longitude = fields.longitude;
+  if (fields.placeName !== undefined) patch.placeName = fields.placeName;
+
+  let newPhotoUri = current.photoUri;
+  if (photoUri === null) {
+    deletePhotoForRecipe(id);
+    newPhotoUri = undefined;
+    patch.hasPhoto = false;
+  } else if (photoUri !== undefined && photoUri !== current.photoUri) {
+    newPhotoUri = await savePhotoForRecipe(id, photoUri);
+    patch.hasPhoto = true;
+  }
+
+  await updateDoc(doc(db, "recipes", id), { ...patch, updatedAt: serverTimestamp() });
+
+  return { ...current, ...patch, photoUri: newPhotoUri, updatedAt: new Date() } as Recipe;
 }
 
-/** Supprime une recette. Renvoie false si l'id est inconnu. */
-export function deleteRecipe(id: string): Promise<boolean> {
-  return enqueue(async () => {
-    const stored = await readAll();
-    const remaining = stored.filter((r) => r.id !== id);
-    if (remaining.length === stored.length) return false;
-    await writeAll(remaining);
-    return true;
-  });
+/** Supprime la recette (Firestore) et sa photo (téléphone). Renvoie false si elle est introuvable. */
+export async function deleteRecipe(id: string): Promise<boolean> {
+  const existing = await getRecipeById(id);
+  if (!existing) return false;
+  await deleteDoc(doc(db, "recipes", id));
+  deletePhotoForRecipe(id);
+  return true;
 }
