@@ -42,3 +42,29 @@ Projet réalisé en binôme par :
 ## 🎯 Objectif
 
 Créer une application mobile fonctionnelle permettant de gérer ses recettes personnelles, dans le cadre d'un projet de formation React Native et Expo.
+
+## Commandes utiles
+
+eas build:configure                                   # crée eas.json
+eas build --profile development --platform android    # build de dev
+eas build --profile preview --platform android        # APK de test
+eas build --profile production --platform all         # build de production
+eas build --profile preview --platform android --non-interactive   # sans questions
+eas build --profile development --platform android --local        # build sur votre machine
+
+eas submit --platform android            # envoyer sur le Play Store
+eas submit --platform ios                # envoyer sur App Store Connect
+eas submit --platform all --latest       # soumettre le dernier build
+
+npx expo install expo-updates   # prérequis
+eas update:configure            # configuration initiale
+eas update --branch preview --message "Correction du formulaire"   # publier une mise à jour
+eas update:list                 # lister les mises à jour
+eas channel:list                # lister les canaux
+
+npx expo start                  # serveur de dev (Expo Go)
+npx expo start --dev-client     # serveur de dev pour un build de développement
+npx expo start -c               # vider le cache
+npx expo install <paquet>       # installer un paquet compatible avec votre SDK
+npx expo-doctor                 # diagnostiquer le projet
+npx expo prebuild               # générer les dossiers natifs (android/ios)
