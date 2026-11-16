@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { deletePhoto, persistPhoto, setPendingPhoto } from "../utils/photos";
+import { deletePhoto, setPendingPhoto } from "../utils/photos";
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -73,8 +73,7 @@ export default function CameraScreen() {
     if (!previewUri || busy) return;
     setBusy(true);
     try {
-      const savedUri = await persistPhoto(previewUri);
-      setPendingPhoto(savedUri);
+      setPendingPhoto(previewUri);
       router.back();
     } catch {
       Alert.alert("Erreur", "Impossible d'enregistrer la photo.");

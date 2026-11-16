@@ -1,5 +1,6 @@
 export interface Recipe {
   id: string,
+  userId: string,
   title: string,
   description: string,
   ingredients: string[],
@@ -8,12 +9,15 @@ export interface Recipe {
   longitude?: number,
   placeName?: string,
   createdAt: Date,
-  updatedAt: Date
+  updatedAt: Date,
+  hasPhoto: boolean
 }
 
 /** Données saisies par l'utilisateur : l'id et les dates sont générés ici. */
-export type NewRecipe = Omit<Recipe, "id" | "createdAt" | "updatedAt">;
-export type RecipeUpdate = Partial<NewRecipe>;
+export type NewRecipe = Omit<Recipe, "id" | "createdAt" | "updatedAt" | "hasPhoto">;
+export type RecipeUpdate = Partial<Omit<NewRecipe, "photoUri">> & {
+  photoUri?: string | null;
+};
 
 /** Format réellement stocké : JSON ne gère pas les Date, on les stocke en ISO. */
 export type StoredRecipe = Omit<Recipe, "createdAt" | "updatedAt"> & {
