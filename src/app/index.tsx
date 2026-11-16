@@ -2,6 +2,8 @@
 import RecipeButton from '@/components/ui/recipe-button';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState } from 'react';
+
 
 export default function HomeScreen() {
 
@@ -18,11 +20,6 @@ export default function HomeScreen() {
             Mes recettes
           </Text>
 
-          <RecipeButton
-            title="Ajouter une recette"
-            variant="primary"
-            onPress={() => {}}
-          />
         </View>
       </ScrollView>
     </SafeAreaView>
