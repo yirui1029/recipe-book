@@ -1,40 +1,51 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://unistyl.es/), etc.
- */
 
 import '@/global.css';
 
 import { Platform } from 'react-native';
 
+// Palette principale Recipe-Book
+export const RecipeColors = {
+  primary: '#506B5D',
+  text: '#354F43',
+  background: '#F8F0DF',
+  surface: '#FFF9ED',
+  secondary: '#A9BDAA',
+  border: '#DCCFB8',
+  accent: '#B77C55',
+  danger: '#A84B43',
+} as const;
+
+// Thèmes utilisés par les composants Expo
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: RecipeColors.text,
+    background: RecipeColors.background,
+    backgroundElement: RecipeColors.surface,
+    backgroundSelected: RecipeColors.secondary,
+    textSecondary: '#718075',
+    primary: RecipeColors.primary,
+    border: RecipeColors.border,
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#F8F0DF',
+    background: '#1D2B25',
+    backgroundElement: '#2B3D33',
+    backgroundSelected: '#40594A',
+    textSecondary: '#B8C9B9',
+    primary: '#A9BDAA',
+    border: '#506B5D',
   },
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export type ThemeColor =
+  keyof typeof Colors.light & keyof typeof Colors.dark;
 
+// Polices
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
@@ -51,6 +62,7 @@ export const Fonts = Platform.select({
   },
 });
 
+// Espacements Expo existants
 export const Spacing = {
   half: 2,
   one: 4,
@@ -61,5 +73,26 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+// Espacements Recipe-Book
+export const RecipeSpacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+} as const;
+
+// Arrondis Recipe-Book
+export const RecipeRadius = {
+  sm: 12,
+  md: 18,
+  lg: 24,
+  pill: 999,
+} as const;
+
+// Constantes de mise en page
+export const BottomTabInset =
+  Platform.select({ ios: 50, android: 80 }) ?? 0;
+
 export const MaxContentWidth = 800;
