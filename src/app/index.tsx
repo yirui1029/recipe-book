@@ -3,10 +3,6 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 
-import RecipeButton from '@/components/ui/recipe-button';
-import BottomNavigation, {
-  TabName,
-} from '@/components/ui/bottom-navigation';
 
 export default function HomeScreen() {
 
@@ -25,11 +21,6 @@ export default function HomeScreen() {
             Mes recettes
           </Text>
 
-          <RecipeButton
-            title="Ajouter une recette"
-            variant="primary"
-            onPress={() => {}}
-          />
         </View>
       </ScrollView>
     </SafeAreaView>
