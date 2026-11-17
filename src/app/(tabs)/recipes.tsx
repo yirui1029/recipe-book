@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 
 import RecipeButton from '@/components/ui/recipe-button';
-import CreateRecipeModal from './create-recipe-modal';
+import CreateRecipeModal from '@/app/create-recipe-modal';
 
 import { RecipeColors as C } from '@/constants/theme';
 import type { NewRecipe } from '@/types/recipe';
