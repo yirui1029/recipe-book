@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -8,7 +7,9 @@ import {
 
 import CreateRecipeModal from '@/app/(app)/create-recipe-modal';
 import RecipeButton from '@/components/ui/recipe-button';
-
+import { useCallback, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { consumePendingPhoto } from '@/utils/photos';
 import { RecipeColors as C } from '@/constants/theme';
 import { useAuth } from '@/context/AuthProvider';
 import type { NewRecipe } from '@/types/recipe';
@@ -41,6 +42,26 @@ export default function RecipesScreen() {
     );
   };
 
+const router = useRouter();
+
+const [photoUri, setPhotoUri] = useState<string>();
+
+const openCamera = () => {
+  setModalVisible(false);
+  router.push('/camera');
+};
+
+useFocusEffect(
+  useCallback(() => {
+    const uri = consumePendingPhoto();
+
+    if (uri) {
+      setPhotoUri(uri);
+      setModalVisible(true);
+    }
+  }, [])
+);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
@@ -59,10 +80,14 @@ export default function RecipesScreen() {
 
       {/* Formulaire de création */}
       <CreateRecipeModal
-        visible={modalVisible}
-        onClose={closeModal}
-        onSave={handleSaveRecipe}
-        userId={auth.user!.uid}
+      visible={modalVisible}
+  userId={auth.user?.uid ?? ''}
+  photoUri={photoUri}
+  onOpenCamera={openCamera}
+  onClose={closeModal}
+  onSave={handleSaveRecipe}
+  onRemovePhoto={() => setPhotoUri(undefined)}
+  onSelectPhoto={setPhotoUri}
       />
     </View>
   );
