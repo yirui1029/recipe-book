@@ -10,7 +10,14 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Mon profil</Text>
-      <Text style={styles.infoText}>{auth.user?.email}</Text>
+      <Text 
+        style={styles.infoText}
+        onPress={() => {
+          auth.logOut()
+        }}
+      >
+        Déconnexion
+      </Text>
 
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
