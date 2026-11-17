@@ -1,33 +1,69 @@
+import { useState } from 'react';
+import {
+  Alert,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+import CreateRecipeModal from '@/app/(app)/create-recipe-modal';
 import RecipeButton from '@/components/ui/recipe-button';
-import { RecipeColors } from '@/constants/theme';
-import { StyleSheet, Text, View } from 'react-native';
+
+import { RecipeColors as C } from '@/constants/theme';
+import { useAuth } from '@/context/AuthProvider';
+import type { NewRecipe } from '@/types/recipe';
 
 export default function RecipesScreen() {
+  // Contrôle l'affichage du formulaire
+  const [modalVisible, setModalVisible] = useState(false);
+  const auth = useAuth()
+
+  // Ouvrir le formulaire
+  const openModal = () => {
+    setModalVisible(true);
+  };
+
+  // Fermer le formulaire
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
+  // Enregistrer une nouvelle recette
+  const handleSaveRecipe = async (recipe: NewRecipe) => {
+    console.log('Nouvelle recette :', recipe);
+
+    // TODO : enregistrer dans Firebase ou dans
+    // le système de stockage prévu par le projet.
+
+    Alert.alert(
+      'Succès',
+      'Le formulaire a été validé.'
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Mes recettes</Text>
-
-      <Text style={styles.subtitle}>
-        Retrouve toutes tes recettes préférées ici.
+      <Text style={styles.title}>
+        Mes recettes
       </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.emoji}>🍲</Text>
+      <Text style={styles.description}>
+        Retrouve toutes tes recettes préférées.
+      </Text>
 
-        <Text style={styles.cardTitle}>
-          Aucune recette pour le moment
-        </Text>
+      {/* Bouton pour ouvrir le formulaire */}
+      <RecipeButton
+        title="Ajouter une recette"
+        onPress={openModal}
+      />
 
-        <Text style={styles.description}>
-          Commence par ajouter ta première recette !
-        </Text>
-
-        <RecipeButton
-          title="Ajouter une recette"
-          variant="primary"
-          onPress={() => {}}
-        />
-      </View>
+      {/* Formulaire de création */}
+      <CreateRecipeModal
+        visible={modalVisible}
+        onClose={closeModal}
+        onSave={handleSaveRecipe}
+        userId={auth.user!.uid}
+      />
     </View>
   );
 }
@@ -35,42 +71,19 @@ export default function RecipesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: RecipeColors.background,
+    backgroundColor: C.background,
     padding: 24,
-    paddingTop: 40,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: RecipeColors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: RecipeColors.text,
-    marginBottom: 32,
-  },
-  card: {
-    backgroundColor: RecipeColors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: RecipeColors.border,
-    padding: 24,
-    alignItems: 'center',
     gap: 16,
   },
-  emoji: {
-    fontSize: 48,
-  },
-  cardTitle: {
-    fontSize: 18,
+
+  title: {
+    fontSize: 28,
     fontWeight: 'bold',
-    color: RecipeColors.text,
-    textAlign: 'center',
+    color: C.text,
   },
+
   description: {
-    fontSize: 14,
-    color: RecipeColors.text,
-    textAlign: 'center',
+    fontSize: 15,
+    color: C.text,
   },
 });

@@ -1,25 +1,25 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
-  Image,
-  StyleSheet,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { usePathname, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { RecipeColors as C } from '@/constants/theme';
-import type { Ingredient, NewRecipe } from '@/types/recipe';
-import { consumePendingPhoto} from '@/utils/photos';
 import { INGREDIENTS } from '@/data/ingredients';
+import type { NewRecipe } from '@/types/recipe';
+import { consumePendingPhoto } from '@/utils/photos';
 
 
 
@@ -47,7 +47,7 @@ export default function CreateRecipeModal({
   const [ingredientInput, setIngredientInput] = useState('');
   const [quantityInput, setQuantityInput] = useState('');
   const [unit, setUnit] = useState('g');
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [ingredients, setIngredients] = useState<string[]>([]);
   const [photoUri, setPhotoUri] = useState<string>();
   const [placeName, setPlaceName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -60,7 +60,7 @@ export default function CreateRecipeModal({
         .filter(
           (ingredient) =>
             !ingredients.some(
-              (item) => item.name.toLowerCase() === ingredient.toLowerCase()
+              (item) => item.toLowerCase() === ingredient.toLowerCase()
             )
         )
         .slice(0, 5)
@@ -116,12 +116,12 @@ export default function CreateRecipeModal({
       Alert.alert('Quantité invalide', 'Saisis une quantité supérieure à zéro.');
       return;
     }
-    if (ingredients.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
+    if (ingredients.some((item) => item.toLowerCase() === name.toLowerCase())) {
       Alert.alert('Ingrédient déjà ajouté', 'Cet ingrédient est déjà dans la liste.');
       return;
     }
 
-    setIngredients((current) => [...current, { name, quantity, unit }]);
+    setIngredients((current) => [...current]);
     setIngredientInput('');
     setQuantityInput('');
     setUnit('g');
@@ -339,13 +339,13 @@ export default function CreateRecipeModal({
             <View style={styles.chips}>
               {ingredients.map((ingredient, index) => (
                 <Pressable
-                  key={`${ingredient.name}-${index}`}
+                  key={`${ingredient}-${index}`}
                   style={styles.chip}
                   onPress={() => removeIngredient(index)}
                   disabled={saving}
                 >
                   <Text style={styles.chipText}>
-                    {ingredient.quantity} {ingredient.unit} — {ingredient.name}
+                    {quantityInput} {unit} — {ingredient}
                   </Text>
                   <Ionicons name="close-circle" size={16} color={C.text} />
                 </Pressable>

@@ -1,30 +1,65 @@
 
-import RecipeButton from '@/components/ui/recipe-button';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import RecipeCard from '@/components/ui/recipe-card';
+import { RecipeColors as C } from '@/constants/theme';
+import { mockRecipes } from '@/data/mock-recipes';
+
 export default function HomeScreen() {
+  const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <FlatList
+        data={mockRecipes}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        showsVerticalScrollIndicator={false}
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <Text style={styles.title}>
+              Recipe-Book
+            </Text>
 
-        {/* En-tête */}
-        <Text style={styles.title}>Recipe-Book</Text>
+            <Text style={styles.sectionTitle}>
+              Mes recettes
+            </Text>
 
-        {/* Contenu de l'accueil */}
-        <View style={styles.main}>
-          <Text style={styles.sectionTitle}>
-            Mes recettes
-          </Text>
-
-          <RecipeButton
-            title="Ajouter une recette"
-            variant="primary"
-            onPress={() => {}}
-          />
-        </View>
-      </ScrollView>
+            <Text style={styles.subtitle}>
+              Découvre tes recettes préférées !
+            </Text>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              Aucune recette pour le moment.
+            </Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.cardWrapper}>
+            <RecipeCard
+              recipe={item}
+              onPress={() =>
+                router.push({
+                  pathname: '/recipe/[id]',
+                  params: { id: item.id },
+                })
+              }
+            />
+          </View>
+        )}
+      />
     </SafeAreaView>
   );
 }
@@ -32,26 +67,59 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F0DF',
+    backgroundColor: C.background,
   },
+
   content: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 40,
     flexGrow: 1,
-    padding: 24,
   },
+
+  header: {
+    marginBottom: 24,
+  },
+
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#354F43',
+    color: C.text,
     textAlign: 'center',
-    marginTop: 24,
     marginBottom: 32,
   },
-  main: {
-    gap: 16,
-  },
+
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#354F43',
+    color: C.text,
+    marginBottom: 8,
+  },
+
+  subtitle: {
+    fontSize: 14,
+    color: C.primary,
+  },
+
+  row: {
+    gap: 12,
+    marginBottom: 16,
+  },
+
+  cardWrapper: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+
+  emptyText: {
+    fontSize: 15,
+    color: C.text,
+    textAlign: 'center',
   },
 });

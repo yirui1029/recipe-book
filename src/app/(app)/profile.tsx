@@ -1,11 +1,16 @@
-import { RecipeColors } from '@/constants/theme';
+
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { RecipeColors } from '@/constants/theme';
+import { useAuth } from '@/context/AuthProvider';
+
 export default function ProfileScreen() {
+  const auth = useAuth()
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Mon profil</Text>
+      <Text style={styles.infoText}>{auth.user?.email}</Text>
 
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
