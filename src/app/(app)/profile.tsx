@@ -1,9 +1,6 @@
-
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
-
 import { RecipeColors } from '@/constants/theme';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { StyleSheet, Text, View } from 'react-native';
 
 export default function ProfileScreen() {
   return (

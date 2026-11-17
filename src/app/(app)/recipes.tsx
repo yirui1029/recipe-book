@@ -1,9 +1,6 @@
-
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-
 import RecipeButton from '@/components/ui/recipe-button';
 import { RecipeColors } from '@/constants/theme';
+import { StyleSheet, Text, View } from 'react-native';
 
 export default function RecipesScreen() {
   return (

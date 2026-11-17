@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { deletePhoto, setPendingPhoto } from "../utils/photos";
+import { deletePhoto, setPendingPhoto } from "../../utils/photos";
 
 export default function CameraScreen() {
   const router = useRouter();
