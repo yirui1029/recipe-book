@@ -1,5 +1,4 @@
-
-import React, { useCallback, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -14,162 +13,192 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter, useFocusEffect} from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 
 import { RecipeColors as C } from '@/constants/theme';
-import type { NewRecipe } from '@/types/recipe';
-import { consumePendingPhoto } from '@/utils/photos';
+import type { Ingredient, NewRecipe } from '@/types/recipe';
+import { consumePendingPhoto} from '@/utils/photos';
 import { INGREDIENTS } from '@/data/ingredients';
+
+
+
+const UNITS = ['g', 'kg', 'ml', 'L', 'pièce', 'c. à soupe', 'c. à café'];
 
 interface CreateRecipeModalProps {
   visible: boolean;
+  userId: string;
   onClose: () => void;
   onSave: (recipe: NewRecipe) => Promise<void> | void;
 }
 
 export default function CreateRecipeModal({
   visible,
+  userId,
   onClose,
   onSave,
 }: CreateRecipeModalProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const visitedCamera = useRef(false);
 
-  // Formulaire
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [ingredientInput, setIngredientInput] = useState('');
-  const [ingredients, setIngredients] = useState<string[]>([]);
-  const suggestions = ingredientInput.trim()
-  ? INGREDIENTS.filter((ingredient) =>
-      ingredient
-        .toLowerCase()
-        .includes(ingredientInput.trim().toLowerCase())
-    )
-      .filter((ingredient) => !ingredients.includes(ingredient))
-      .slice(0, 5)
-  : [];
-
-const selectIngredient = (ingredient: string) => {
-  setIngredients((current) => [...current, ingredient]);
-  setIngredientInput('');
-};
+  const [quantityInput, setQuantityInput] = useState('');
+  const [unit, setUnit] = useState('g');
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [photoUri, setPhotoUri] = useState<string>();
   const [placeName, setPlaceName] = useState('');
-
-  // États
   const [saving, setSaving] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
 
-  // Récupérer la photo lorsque l'écran Recettes
-  // reprend le focus après la caméra.
-  useFocusEffect(
-    useCallback(() => {
-      if (cameraOpen) {
-        const uri = consumePendingPhoto();
+  const suggestions = ingredientInput.trim()
+    ? INGREDIENTS.filter((ingredient) =>
+        ingredient.toLowerCase().includes(ingredientInput.trim().toLowerCase())
+      )
+        .filter(
+          (ingredient) =>
+            !ingredients.some(
+              (item) => item.name.toLowerCase() === ingredient.toLowerCase()
+            )
+        )
+        .slice(0, 5)
+    : [];
 
-        if (uri) {
-          setPhotoUri(uri);
-        }
+  // Sélectionner un ingrédient sans l'ajouter tout de suite :
+  // l'utilisateur doit encore renseigner quantité et unité.
+  const selectIngredient = (ingredient: string) => {
+    setIngredientInput(ingredient);
+  };
 
-        setCameraOpen(false);
-      }
-    }, [cameraOpen])
-  );
 
-  // Ouvrir camera.tsx
+  // Attendre un véritable passage par la route caméra avant de lire la photo.
+  useEffect(() => {
+    if (!cameraOpen) return;
+
+    if (pathname === '/camera') {
+      visitedCamera.current = true;
+      return;
+    }
+
+    if (visitedCamera.current) {
+      const uri = consumePendingPhoto();
+      if (uri) setPhotoUri(uri);
+      visitedCamera.current = false;
+      setCameraOpen(false);
+    }
+  }, [cameraOpen, pathname]);
+
   const openCamera = () => {
     if (saving) return;
-
+    visitedCamera.current = false;
     setCameraOpen(true);
     router.push('/camera');
   };
 
-  // Ajouter un ingrédient
+  const parseQuantity = () => {
+    const raw = quantityInput.trim().replace(',', '.');
+    if (!raw) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  };
+
   const addIngredient = () => {
-    const value = ingredientInput.trim();
+    const name = ingredientInput.trim();
+    const quantity = parseQuantity();
 
-    if (!value) return;
+    if (!name) {
+      Alert.alert('Ingrédient manquant', 'Saisis le nom de l’ingrédient.');
+      return;
+    }
+    if (quantity === null) {
+      Alert.alert('Quantité invalide', 'Saisis une quantité supérieure à zéro.');
+      return;
+    }
+    if (ingredients.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
+      Alert.alert('Ingrédient déjà ajouté', 'Cet ingrédient est déjà dans la liste.');
+      return;
+    }
 
-    setIngredients((current) => [...current, value]);
+    setIngredients((current) => [...current, { name, quantity, unit }]);
     setIngredientInput('');
+    setQuantityInput('');
+    setUnit('g');
   };
 
-  // Supprimer un ingrédient
   const removeIngredient = (index: number) => {
-    setIngredients((current) =>
-      current.filter((_, i) => i !== index)
-    );
+    setIngredients((current) => current.filter((_, i) => i !== index));
   };
 
-  
-
-  // Réinitialiser le formulaire
   const resetForm = () => {
     setTitle('');
     setDescription('');
     setIngredientInput('');
+    setQuantityInput('');
+    setUnit('g');
     setIngredients([]);
     setPhotoUri(undefined);
     setPlaceName('');
     setCameraOpen(false);
+    visitedCamera.current = false;
   };
 
-  // Fermer le modal
   const handleClose = () => {
     if (saving) return;
-
     resetForm();
     onClose();
   };
 
-  // Enregistrer la recette
   const handleSave = async () => {
     if (saving) return;
 
     const cleanTitle = title.trim();
     const cleanDescription = description.trim();
-    const pendingIngredient = ingredientInput.trim();
+    const pendingName = ingredientInput.trim();
+    const quantity = parseQuantity();
 
-    const finalIngredients = pendingIngredient
-      ? [...ingredients, pendingIngredient]
-      : ingredients;
+    if (!cleanTitle || !cleanDescription) {
+      Alert.alert('Champs obligatoires', 'Ajoute un titre et une description.');
+      return;
+    }
 
-    if (
-      !cleanTitle ||
-      !cleanDescription ||
-      finalIngredients.length === 0
-    ) {
+    if (!userId.trim()) {
+      Alert.alert('Utilisateur manquant', 'Impossible de déterminer l’utilisateur.');
+      return;
+    }
+
+    // Si un ingrédient est encore saisi, on demande de cliquer sur +
+    // pour éviter de perdre sa quantité.
+    if (pendingName || quantityInput.trim()) {
       Alert.alert(
-        'Champs obligatoires',
-        'Ajoute un titre, une description et au moins un ingrédient.'
+        'Ingrédient en cours',
+        'Clique sur + pour ajouter ton ingrédient et sa quantité avant d’enregistrer.'
       );
       return;
     }
 
+    if (ingredients.length === 0) {
+      Alert.alert('Champs obligatoires', 'Ajoute au moins un ingrédient.');
+      return;
+    }
+
     const newRecipe: NewRecipe = {
+      userId: userId.trim(),
       title: cleanTitle,
       description: cleanDescription,
-      ingredients: finalIngredients,
+      ingredients,
       ...(photoUri ? { photoUri } : {}),
-      ...(placeName.trim()
-        ? { placeName: placeName.trim() }
-        : {}),
+      ...(placeName.trim() ? { placeName: placeName.trim() } : {}),
     };
 
     try {
       setSaving(true);
-
       await onSave(newRecipe);
-
       resetForm();
       onClose();
     } catch {
-      Alert.alert(
-        'Erreur',
-        "Impossible d'enregistrer la recette."
-      );
+      Alert.alert('Erreur', "Impossible d'enregistrer la recette.");
     } finally {
       setSaving(false);
     }
@@ -183,79 +212,44 @@ const selectIngredient = (ingredient: string) => {
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
-  style={styles.overlay}
-  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-  keyboardVerticalOffset={0}
->
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         <View style={styles.modal}>
-          {/* En-tête */}
           <View style={styles.header}>
-            <Text style={styles.heading}>
-              Nouvelle recette
-            </Text>
-
-            <Pressable
-              onPress={handleClose}
-              disabled={saving}
-            >
-              <Ionicons
-                name="close"
-                size={26}
-                color={C.text}
-              />
+            <Text style={styles.heading}>Nouvelle recette</Text>
+            <Pressable onPress={handleClose} disabled={saving}>
+              <Ionicons name="close" size={26} color={C.text} />
             </Pressable>
           </View>
 
           <ScrollView
-  keyboardShouldPersistTaps="handled"
-  keyboardDismissMode="on-drag"
-  showsVerticalScrollIndicator={false}
-  automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-  contentContainerStyle={styles.form}
->
-            {/* Photo */}
-            <Pressable
-              style={styles.photoBox}
-              onPress={openCamera}
-              disabled={saving}
-            >
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+            contentContainerStyle={styles.form}
+          >
+            {/* Photo : fonctionnalité existante conservée */}
+            <Pressable style={styles.photoBox} onPress={openCamera} disabled={saving}>
               {photoUri ? (
                 <>
-                  <Image
-                    source={{ uri: photoUri }}
-                    style={styles.photo}
-                  />
-
+                  <Image source={{ uri: photoUri }} style={styles.photo} />
                   <View style={styles.photoOverlay}>
-                    <Ionicons
-                      name="camera-outline"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.changePhotoText}>
-                      Reprendre une photo
-                    </Text>
+                    <Ionicons name="camera-outline" size={20} color="#FFFFFF" />
+                    <Text style={styles.changePhotoText}>Reprendre une photo</Text>
                   </View>
                 </>
               ) : (
                 <>
-                  <Ionicons
-                    name="camera-outline"
-                    size={34}
-                    color={C.primary}
-                  />
-                  <Text style={styles.photoLabel}>
-                    Prendre une photo
-                  </Text>
+                  <Ionicons name="camera-outline" size={34} color={C.primary} />
+                  <Text style={styles.photoLabel}>Prendre une photo</Text>
                 </>
               )}
             </Pressable>
 
-            {/* Titre */}
-            <Text style={styles.label}>
-              Nom de la recette *
-            </Text>
-
+            <Text style={styles.label}>Nom de la recette *</Text>
             <TextInput
               style={styles.input}
               value={title}
@@ -265,11 +259,7 @@ const selectIngredient = (ingredient: string) => {
               editable={!saving}
             />
 
-            {/* Description */}
-            <Text style={styles.label}>
-              Description *
-            </Text>
-
+            <Text style={styles.label}>Description *</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={description}
@@ -281,89 +271,88 @@ const selectIngredient = (ingredient: string) => {
               editable={!saving}
             />
 
-            
-{/* Ingrédients */}
-<Text style={styles.label}>
-  Ingrédients *
-</Text>
+            {/* Ingrédient et suggestions : conservés */}
+            <Text style={styles.label}>Ingrédients *</Text>
+            <TextInput
+              style={styles.input}
+              value={ingredientInput}
+              onChangeText={setIngredientInput}
+              placeholder="Rechercher un ingrédient..."
+              placeholderTextColor="#999999"
+              editable={!saving}
+            />
 
-<View style={styles.ingredientRow}>
-  <TextInput
-    style={[styles.input, styles.ingredientInput]}
-    value={ingredientInput}
-    onChangeText={setIngredientInput}
-    placeholder="Rechercher un ingrédient..."
-    placeholderTextColor="#999999"
-    onSubmitEditing={addIngredient}
-    returnKeyType="done"
-    editable={!saving}
-  />
+            {suggestions.length > 0 && (
+              <View style={styles.suggestions}>
+                {suggestions.map((ingredient) => (
+                  <Pressable
+                    key={ingredient}
+                    style={styles.suggestionItem}
+                    onPress={() => selectIngredient(ingredient)}
+                    disabled={saving}
+                  >
+                    <Text style={styles.suggestionText}>{ingredient}</Text>
+                    <Ionicons name="checkmark-circle-outline" size={20} color={C.primary} />
+                  </Pressable>
+                ))}
+              </View>
+            )}
 
-  <Pressable
-    style={styles.addButton}
-    onPress={addIngredient}
-    disabled={saving}
-  >
-    <Ionicons
-      name="add"
-      size={25}
-      color="#FFFFFF"
-    />
-  </Pressable>
-</View>
+            {/* NOUVEAU : quantité et unité */}
+            <Text style={styles.label}>Quantité et unité *</Text>
+            <View style={styles.quantityRow}>
+              <TextInput
+                style={[styles.input, styles.quantityInput]}
+                value={quantityInput}
+                onChangeText={setQuantityInput}
+                placeholder="Ex. 200"
+                placeholderTextColor="#999999"
+                keyboardType="decimal-pad"
+                editable={!saving}
+              />
+              <Pressable
+                style={[styles.addButton, saving && styles.disabled]}
+                onPress={addIngredient}
+                disabled={saving}
+                accessibilityLabel="Ajouter l'ingrédient avec sa quantité"
+              >
+                <Ionicons name="add" size={25} color="#FFFFFF" />
+              </Pressable>
+            </View>
 
-{/* Suggestions automatiques */}
-{suggestions.length > 0 && (
-  <View style={styles.suggestions}>
-    {suggestions.map((ingredient) => (
-      <Pressable
-        key={ingredient}
-        style={styles.suggestionItem}
-        onPress={() => selectIngredient(ingredient)}
-        disabled={saving}
-      >
-        <Text style={styles.suggestionText}>
-          {ingredient}
-        </Text>
+            <View style={styles.unitButtons}>
+              {UNITS.map((item) => (
+                <Pressable
+                  key={item}
+                  onPress={() => setUnit(item)}
+                  disabled={saving}
+                  style={[styles.unitButton, unit === item && styles.unitButtonActive]}
+                >
+                  <Text style={[styles.unitText, unit === item && styles.unitTextActive]}>
+                    {item}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
 
-        <Ionicons
-          name="add-circle-outline"
-          size={20}
-          color={C.primary}
-        />
-      </Pressable>
-    ))}
-  </View>
-)}
+            {/* Ingrédients sélectionnés avec leurs quantités */}
+            <View style={styles.chips}>
+              {ingredients.map((ingredient, index) => (
+                <Pressable
+                  key={`${ingredient.name}-${index}`}
+                  style={styles.chip}
+                  onPress={() => removeIngredient(index)}
+                  disabled={saving}
+                >
+                  <Text style={styles.chipText}>
+                    {ingredient.quantity} {ingredient.unit} — {ingredient.name}
+                  </Text>
+                  <Ionicons name="close-circle" size={16} color={C.text} />
+                </Pressable>
+              ))}
+            </View>
 
-{/* Ingrédients sélectionnés */}
-<View style={styles.chips}>
-  {ingredients.map((ingredient, index) => (
-    <Pressable
-      key={`${ingredient}-${index}`}
-      style={styles.chip}
-      onPress={() => removeIngredient(index)}
-      disabled={saving}
-    >
-      <Text style={styles.chipText}>
-        {ingredient}
-      </Text>
-
-      <Ionicons
-        name="close-circle"
-        size={16}
-        color={C.text}
-      />
-    </Pressable>
-  ))}
-</View>
-
-
-            {/* Lieu */}
-            <Text style={styles.label}>
-              Lieu (facultatif)
-            </Text>
-
+            <Text style={styles.label}>Lieu (facultatif)</Text>
             <TextInput
               style={styles.input}
               value={placeName}
@@ -373,21 +362,15 @@ const selectIngredient = (ingredient: string) => {
               editable={!saving}
             />
 
-            {/* Enregistrement */}
             <Pressable
-              style={[
-                styles.saveButton,
-                saving && styles.disabled,
-              ]}
+              style={[styles.saveButton, saving && styles.disabled]}
               onPress={handleSave}
               disabled={saving}
             >
               {saving ? (
                 <ActivityIndicator color={C.surface} />
               ) : (
-                <Text style={styles.saveText}>
-                  Enregistrer la recette
-                </Text>
+                <Text style={styles.saveText}>Enregistrer la recette</Text>
               )}
             </Pressable>
           </ScrollView>
@@ -403,34 +386,22 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
-
   modal: {
     backgroundColor: C.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 24,
     maxHeight: '90%',
-    minHeight: 300,         
+    minHeight: 300,
   },
-
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
   },
-
-  heading: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: C.text,
-  },
-
-  form: {
-    paddingBottom: 40,
-    gap: 12,
-  },
-
+  heading: { fontSize: 24, fontWeight: 'bold', color: C.text },
+  form: { paddingBottom: 40, gap: 12 },
   photoBox: {
     height: 150,
     backgroundColor: C.background,
@@ -443,12 +414,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     gap: 8,
   },
-
-  photo: {
-    width: '100%',
-    height: '100%',
-  },
-
+  photo: { width: '100%', height: '100%' },
   photoOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -461,25 +427,9 @@ const styles = StyleSheet.create({
     padding: 10,
     gap: 8,
   },
-
-  changePhotoText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  photoLabel: {
-    color: C.primary,
-    fontWeight: '600',
-  },
-
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: C.text,
-    marginTop: 6,
-  },
-
+  changePhotoText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
+  photoLabel: { color: C.primary, fontWeight: '600' },
+  label: { fontSize: 14, fontWeight: '600', color: C.text, marginTop: 6 },
   input: {
     minHeight: 48,
     backgroundColor: '#FFFFFF',
@@ -490,21 +440,9 @@ const styles = StyleSheet.create({
     color: C.text,
     fontSize: 15,
   },
-
-  textArea: {
-    minHeight: 90,
-    paddingTop: 12,
-  },
-
-  ingredientRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-
-  ingredientInput: {
-    flex: 1,
-  },
-
+  textArea: { minHeight: 90, paddingTop: 12 },
+  quantityRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  quantityInput: { flex: 1 },
   addButton: {
     width: 48,
     height: 48,
@@ -513,13 +451,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  unitButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  unitButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: '#FFFFFF',
   },
-
+  unitButtonActive: { backgroundColor: C.primary, borderColor: C.primary },
+  unitText: { color: C.text, fontSize: 13 },
+  unitTextActive: { color: C.surface },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -529,12 +473,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-
-  chipText: {
-    color: C.text,
-    fontSize: 13,
-  },
-
+  chipText: { color: C.text, fontSize: 13 },
   saveButton: {
     backgroundColor: C.primary,
     borderRadius: 28,
@@ -543,36 +482,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 20,
   },
-
-  saveText: {
-    color: C.surface,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-
-  disabled: {
-    opacity: 0.6,
-  },
+  saveText: { color: C.surface, fontSize: 15, fontWeight: '600' },
+  disabled: { opacity: 0.6 },
   suggestions: {
-  backgroundColor: '#FFFFFF',
-  borderWidth: 1,
-  borderColor: C.border,
-  borderRadius: 12,
-  overflow: 'hidden',
-},
-
-suggestionItem: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  paddingHorizontal: 14,
-  paddingVertical: 12,
-  borderBottomWidth: 1,
-  borderBottomColor: C.border,
-},
-
-suggestionText: {
-  color: C.text,
-  fontSize: 15,
-},
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  suggestionText: { color: C.text, fontSize: 15 },
 });

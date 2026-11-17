@@ -1,0 +1,93 @@
+
+import type { Recipe } from '@/types/recipe';
+
+export const mockRecipes: Recipe[] = [
+  {
+    id: '1',
+    userId: 'user-demo-1',
+    title: 'Poulet Kung Pao',
+    description:
+      'Un plat traditionnel du Sichuan à base de poulet, de cacahuètes et de piments séchés.',
+    ingredients: [
+      '300 g de poulet',
+      '50 g de cacahuètes',
+      '2 cuillères à soupe de sauce soja',
+      '4 piments séchés',
+      '1 morceau de gingembre',
+      '2 gousses d’ail',
+    ],
+    placeName: 'Chengdu, Chine',
+    latitude: 30.5728,
+    longitude: 104.0668,
+    photoUri: undefined,
+    hasPhoto: false,
+    createdAt: new Date('2026-11-10T10:00:00'),
+    updatedAt: new Date('2026-11-10T10:00:00'),
+  },
+  {
+    id: '2',
+    userId: 'user-demo-1',
+    title: 'Pâtes à la tomate',
+    description:
+      'Des pâtes à la sauce tomate maison, parfumées au basilic et à l’huile d’olive.',
+    ingredients: [
+      '200 g de pâtes',
+      '3 tomates',
+      '2 gousses d’ail',
+      'Basilic frais',
+      'Huile d’olive',
+      'Sel',
+      'Poivre',
+    ],
+    placeName: 'Bordeaux, France',
+    latitude: 44.8378,
+    longitude: -0.5792,
+    photoUri: undefined,
+    hasPhoto: false,
+    createdAt: new Date('2026-11-11T12:30:00'),
+    updatedAt: new Date('2026-11-11T12:30:00'),
+  },
+  {
+    id: '3',
+    userId: 'user-demo-1',
+    title: 'Riz sauté aux œufs',
+    description:
+      'Une recette rapide et savoureuse avec du riz, des œufs et des légumes.',
+    ingredients: [
+      '250 g de riz cuit',
+      '2 œufs',
+      '1 carotte',
+      '50 g de petits pois',
+      '2 cuillères à soupe de sauce soja',
+      'Huile végétale',
+    ],
+    placeName: 'Shanghai, Chine',
+    latitude: 31.2304,
+    longitude: 121.4737,
+    photoUri: undefined,
+    hasPhoto: false,
+    createdAt: new Date('2026-11-12T18:00:00'),
+    updatedAt: new Date('2026-11-12T18:00:00'),
+  },
+  {
+    id: '4',
+    userId: 'user-demo-1',
+    title: 'Crème brûlée',
+    description:
+      'Un dessert français classique à la vanille, avec une fine couche de caramel croustillant.',
+    ingredients: [
+      '500 ml de crème liquide entière',
+      '5 jaunes d’œufs',
+      '80 g de sucre',
+      'Arôme naturel de vanille',
+      'Sucre pour caraméliser',
+    ],
+    placeName: 'Paris, France',
+    latitude: 48.8566,
+    longitude: 2.3522,
+    photoUri: undefined,
+    hasPhoto: false,
+    createdAt: new Date('2026-11-13T14:00:00'),
+    updatedAt: new Date('2026-11-13T14:00:00'),
+  },
+];
