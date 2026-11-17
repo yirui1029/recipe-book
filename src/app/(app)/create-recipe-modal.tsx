@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { usePathname, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +18,7 @@ import {
 import { RecipeColors as C } from '@/constants/theme';
 import { INGREDIENTS } from '@/data/ingredients';
 import type { NewRecipe } from '@/types/recipe';
-import { consumePendingPhoto } from '@/utils/photos';
+import * as ImagePicker from 'expo-image-picker';
 
 
 
@@ -28,19 +27,25 @@ const UNITS = ['g', 'kg', 'ml', 'L', 'pièce', 'c. à soupe', 'c. à café'];
 interface CreateRecipeModalProps {
   visible: boolean;
   userId: string;
+  photoUri?: string;
+  onOpenCamera: () => void;
   onClose: () => void;
   onSave: (recipe: NewRecipe) => Promise<void> | void;
+  onSelectPhoto: (uri: string) => void;
+  onRemovePhoto: () => void;
+  
 }
 
 export default function CreateRecipeModal({
   visible,
   userId,
+  photoUri,
+  onOpenCamera,
   onClose,
   onSave,
+  onSelectPhoto,
+  onRemovePhoto
 }: CreateRecipeModalProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const visitedCamera = useRef(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -48,23 +53,27 @@ export default function CreateRecipeModal({
   const [quantityInput, setQuantityInput] = useState('');
   const [unit, setUnit] = useState('g');
   const [ingredients, setIngredients] = useState<string[]>([]);
-  const [photoUri, setPhotoUri] = useState<string>();
   const [placeName, setPlaceName] = useState('');
   const [saving, setSaving] = useState(false);
-  const [cameraOpen, setCameraOpen] = useState(false);
 
-  const suggestions = ingredientInput.trim()
-    ? INGREDIENTS.filter((ingredient) =>
-        ingredient.toLowerCase().includes(ingredientInput.trim().toLowerCase())
+
+// suggestions des ingredients 
+const suggestions = ingredientInput.trim()
+  ? INGREDIENTS.filter((ingredient) =>
+      ingredient
+        .toLowerCase()
+        .includes(ingredientInput.trim().toLowerCase())
+    )
+      .filter(
+        (ingredient) =>
+          !ingredients.some(
+            (item) =>
+              item.split(' - ')[0].toLowerCase() ===
+              ingredient.toLowerCase()
+          )
       )
-        .filter(
-          (ingredient) =>
-            !ingredients.some(
-              (item) => item.toLowerCase() === ingredient.toLowerCase()
-            )
-        )
-        .slice(0, 5)
-    : [];
+      .slice(0, 5)
+  : [];
 
   // Sélectionner un ingrédient sans l'ajouter tout de suite :
   // l'utilisateur doit encore renseigner quantité et unité.
@@ -73,30 +82,6 @@ export default function CreateRecipeModal({
   };
 
 
-  // Attendre un véritable passage par la route caméra avant de lire la photo.
-  useEffect(() => {
-    if (!cameraOpen) return;
-
-    if (pathname === '/camera') {
-      visitedCamera.current = true;
-      return;
-    }
-
-    if (visitedCamera.current) {
-      const uri = consumePendingPhoto();
-      if (uri) setPhotoUri(uri);
-      visitedCamera.current = false;
-      setCameraOpen(false);
-    }
-  }, [cameraOpen, pathname]);
-
-  const openCamera = () => {
-    if (saving) return;
-    visitedCamera.current = false;
-    setCameraOpen(true);
-    router.push('/camera');
-  };
-
   const parseQuantity = () => {
     const raw = quantityInput.trim().replace(',', '.');
     if (!raw) return null;
@@ -104,28 +89,40 @@ export default function CreateRecipeModal({
     return Number.isFinite(value) && value > 0 ? value : null;
   };
 
-  const addIngredient = () => {
-    const name = ingredientInput.trim();
-    const quantity = parseQuantity();
+const addIngredient = () => {
+  const name = ingredientInput.trim();
+  const quantity = parseQuantity();
 
-    if (!name) {
-      Alert.alert('Ingrédient manquant', 'Saisis le nom de l’ingrédient.');
-      return;
-    }
-    if (quantity === null) {
-      Alert.alert('Quantité invalide', 'Saisis une quantité supérieure à zéro.');
-      return;
-    }
-    if (ingredients.some((item) => item.toLowerCase() === name.toLowerCase())) {
-      Alert.alert('Ingrédient déjà ajouté', 'Cet ingrédient est déjà dans la liste.');
-      return;
-    }
+  if (!name) {
+    Alert.alert('Erreur', 'Saisis un ingrédient.');
+    return;
+  }
 
-    setIngredients((current) => [...current]);
-    setIngredientInput('');
-    setQuantityInput('');
-    setUnit('g');
-  };
+  if (quantity === null) {
+    Alert.alert('Erreur', 'Saisis une quantité valide.');
+    return;
+  }
+
+  const alreadyExists = ingredients.some(
+    (item) =>
+      item.split(' - ')[0].toLowerCase() === name.toLowerCase()
+  );
+
+  if (alreadyExists) {
+    Alert.alert('Erreur', 'Cet ingrédient existe déjà.');
+    return;
+  }
+
+  // Concaténer nom + quantité + unité
+  const newIngredient = `${name} - ${quantity} ${unit}`;
+
+  setIngredients((current) => [...current, newIngredient]);
+
+  // Réinitialiser les champs
+  setIngredientInput('');
+  setQuantityInput('');
+  setUnit('g');
+};
 
   const removeIngredient = (index: number) => {
     setIngredients((current) => current.filter((_, i) => i !== index));
@@ -138,10 +135,7 @@ export default function CreateRecipeModal({
     setQuantityInput('');
     setUnit('g');
     setIngredients([]);
-    setPhotoUri(undefined);
     setPlaceName('');
-    setCameraOpen(false);
-    visitedCamera.current = false;
   };
 
   const handleClose = () => {
@@ -156,8 +150,6 @@ export default function CreateRecipeModal({
     const cleanTitle = title.trim();
     const cleanDescription = description.trim();
     const pendingName = ingredientInput.trim();
-    const quantity = parseQuantity();
-
     if (!cleanTitle || !cleanDescription) {
       Alert.alert('Champs obligatoires', 'Ajoute un titre et une description.');
       return;
@@ -203,10 +195,22 @@ export default function CreateRecipeModal({
       setSaving(false);
     }
   };
+  // choisir une photo dans le telephone de l'utilisateur 
+  const chooseFromGallery = async () => {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: false,
+    quality: 0.8,
+  });
+
+  if (!result.canceled && result.assets.length > 0) {
+    onSelectPhoto(result.assets[0].uri);
+  }
+};
 
   return (
     <Modal
-      visible={visible && !cameraOpen}
+      visible={visible}
       animationType="slide"
       transparent
       onRequestClose={handleClose}
@@ -232,22 +236,52 @@ export default function CreateRecipeModal({
             contentContainerStyle={styles.form}
           >
             {/* Photo : fonctionnalité existante conservée */}
-            <Pressable style={styles.photoBox} onPress={openCamera} disabled={saving}>
-              {photoUri ? (
-                <>
-                  <Image source={{ uri: photoUri }} style={styles.photo} />
-                  <View style={styles.photoOverlay}>
-                    <Ionicons name="camera-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.changePhotoText}>Reprendre une photo</Text>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Ionicons name="camera-outline" size={34} color={C.primary} />
-                  <Text style={styles.photoLabel}>Prendre une photo</Text>
-                </>
-              )}
-            </Pressable>
+<View style={{ gap: 12 }}>
+  {photoUri && (
+    <>
+      <Image
+        source={{ uri: photoUri }}
+        style={styles.photoPreview}
+        resizeMode="cover"
+      />
+
+      <Pressable
+        style={styles.deletePhotoButton}
+        onPress={onRemovePhoto}
+        disabled={saving}
+      >
+        <Ionicons
+          name="trash-outline"
+          size={20}
+          color="#D32F2F"
+        />
+        <Text style={styles.deletePhotoText}>
+          Supprimer la photo
+        </Text>
+      </Pressable>
+    </>
+  )}
+
+  <View style={styles.photoActions}>
+    <Pressable
+      style={styles.cameraButton}
+      onPress={onOpenCamera}
+      disabled={saving}
+    >
+      <Ionicons name="camera-outline" size={22} color="#FFFFFF" />
+      <Text style={styles.cameraButtonText}>Caméra</Text>
+    </Pressable>
+
+    <Pressable
+      style={styles.galleryButton}
+      onPress={chooseFromGallery}
+      disabled={saving}
+    >
+      <Ionicons name="images-outline" size={22} color={C.primary} />
+      <Text style={styles.galleryButtonText}>Galerie</Text>
+    </Pressable>
+  </View>
+</View>
 
             <Text style={styles.label}>Nom de la recette *</Text>
             <TextInput
@@ -337,20 +371,25 @@ export default function CreateRecipeModal({
 
             {/* Ingrédients sélectionnés avec leurs quantités */}
             <View style={styles.chips}>
-              {ingredients.map((ingredient, index) => (
-                <Pressable
-                  key={`${ingredient}-${index}`}
-                  style={styles.chip}
-                  onPress={() => removeIngredient(index)}
-                  disabled={saving}
-                >
-                  <Text style={styles.chipText}>
-                    {quantityInput} {unit} — {ingredient}
-                  </Text>
-                  <Ionicons name="close-circle" size={16} color={C.text} />
-                </Pressable>
-              ))}
-            </View>
+  {ingredients.map((ingredient, index) => (
+    <Pressable
+      key={`${ingredient}-${index}`}
+      style={styles.chip}
+      onPress={() => removeIngredient(index)}
+      disabled={saving}
+    >
+      <Text style={styles.chipText}>
+        {ingredient}
+      </Text>
+
+      <Ionicons
+        name="close-circle"
+        size={16}
+        color={C.text}
+      />
+    </Pressable>
+  ))}
+</View>
 
             <Text style={styles.label}>Lieu (facultatif)</Text>
             <TextInput
@@ -500,5 +539,57 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
+ photoPreview: {
+  width: '100%',
+  height: 180,
+  borderRadius: 16,
+},
+deletePhotoButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  borderWidth: 1,
+  borderColor: '#D32F2F',
+  borderRadius: 12,
+  paddingVertical: 12,
+},
+deletePhotoText: {
+  color: '#D32F2F',
+  fontWeight: '600',
+},
+photoActions: {
+  flexDirection: 'row',
+  gap: 10,
+},
+cameraButton: {
+  flex: 1,
+  backgroundColor: C.primary,
+  borderRadius: 12,
+  paddingVertical: 14,
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexDirection: 'row',
+  gap: 6,
+},
+cameraButtonText: {
+  color: '#FFFFFF',
+  fontWeight: '600',
+},
+galleryButton: {
+  flex: 1,
+  borderWidth: 1,
+  borderColor: C.primary,
+  borderRadius: 12,
+  paddingVertical: 14,
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexDirection: 'row',
+  gap: 6,
+},
+galleryButtonText: {
+  color: C.primary,
+  fontWeight: '600',
+},
   suggestionText: { color: C.text, fontSize: 15 },
 });
