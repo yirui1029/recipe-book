@@ -55,6 +55,8 @@ function getInitialValues(recipe?: Recipe): RecipeFormValues {
 }
 
 type CreateRecipeModalProps = {
+  photoUri?: string;
+onOpenCamera: () => void;
   visible: boolean;
   onClose: () => void;
   /**
@@ -73,6 +75,8 @@ export default function CreateRecipeModal({
   onSave,
   isEditing = false,
   recipeToUpdate,
+  photoUri,
+  onOpenCamera,
 }: CreateRecipeModalProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -339,7 +343,7 @@ const addIngredient = async() => {
   <View style={styles.photoActions}>
     <Pressable
       style={styles.cameraButton}
-      onPress={openCamera}
+      onPress={onOpenCamera}
       disabled={saving}
     >
       <Ionicons name="camera-outline" size={22} color="#FFFFFF" />

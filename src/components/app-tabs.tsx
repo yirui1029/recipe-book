@@ -4,7 +4,6 @@ import { Alert, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import BottomNavigation from '@/components/ui/bottom-navigation';
-import CreateRecipeModal from '@/app/(app)/create-recipe-modal';
 import { RecipeColors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthProvider';
 import { consumePendingPhoto } from '@/utils/photos';
@@ -60,19 +59,7 @@ export default function AppTabs() {
         <BottomNavigation />
       </View>
 
-      <CreateRecipeModal
-        visible={modalVisible}
-        userId={user?.uid ?? ''}
-        photoUri={photoUri}
-        onOpenCamera={openCamera}
-        onClose={() => {
-          setModalVisible(false);
-          setPhotoUri(undefined);
-        }}
-        onSave={handleSaveRecipe}
-        onSelectPhoto={setPhotoUri}
-        onRemovePhoto={() => setPhotoUri(undefined)}
-      />
+
     </SafeAreaView>
   );
 }

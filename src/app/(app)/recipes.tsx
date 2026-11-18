@@ -26,6 +26,35 @@ export default function RecipesScreen() {
     setModalVisible(false);
   };
 
+
+  const router = useRouter();
+const returningFromCamera = useRef(false);
+const [photoUri, setPhotoUri] = useState<string>();
+
+// ouverture camera 
+const openCamera = () => {
+  returningFromCamera.current = true;
+  setModalVisible(false);
+  router.push('/camera');
+};
+
+// detecter le retour camera 
+useFocusEffect(
+  useCallback(() => {
+    if (!returningFromCamera.current) return;
+
+    returningFromCamera.current = false;
+
+    const uri = consumePendingPhoto();
+
+    if (uri) {
+      setPhotoUri(uri);
+    }
+
+    setModalVisible(true);
+  }, [])
+);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
@@ -47,6 +76,8 @@ export default function RecipesScreen() {
         visible={modalVisible}
         onClose={closeModal}
         onSave={createRecipe}
+         photoUri={photoUri}
+        onOpenCamera={openCamera}
       />
     </View>
   );
