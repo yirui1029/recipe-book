@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { useState, useEffect} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,10 @@ import { RecipeColors as C } from '@/constants/theme';
 import { INGREDIENTS } from '@/data/ingredients';
 import type { NewRecipe } from '@/types/recipe';
 import * as ImagePicker from 'expo-image-picker';
+import {
+  getCustomIngredients,
+  saveCustomIngredient,
+} from '@/storage/ingredient-storage';
 
 
 
@@ -55,11 +59,21 @@ export default function CreateRecipeModal({
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [placeName, setPlaceName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [customIngredients, setCustomIngredients] = useState<string[]>([]);
+
+
+    //faire combiner les deux listes des ingrédients 
+    const allIngredients = [
+  ...new Set([
+    ...INGREDIENTS,
+    ...customIngredients,
+  ]),
+];
 
 
 // suggestions des ingredients 
 const suggestions = ingredientInput.trim()
-  ? INGREDIENTS.filter((ingredient) =>
+  ? allIngredients.filter((ingredient) =>
       ingredient
         .toLowerCase()
         .includes(ingredientInput.trim().toLowerCase())
@@ -75,6 +89,15 @@ const suggestions = ingredientInput.trim()
       .slice(0, 5)
   : [];
 
+    //etat pour la liste des ingrédients personnalisée
+
+    useEffect(() => {
+  getCustomIngredients().then(setCustomIngredients);
+}, []);
+
+
+
+
   // Sélectionner un ingrédient sans l'ajouter tout de suite :
   // l'utilisateur doit encore renseigner quantité et unité.
   const selectIngredient = (ingredient: string) => {
@@ -89,7 +112,7 @@ const suggestions = ingredientInput.trim()
     return Number.isFinite(value) && value > 0 ? value : null;
   };
 
-const addIngredient = () => {
+const addIngredient = async() => {
   const name = ingredientInput.trim();
   const quantity = parseQuantity();
 
@@ -112,6 +135,12 @@ const addIngredient = () => {
     Alert.alert('Erreur', 'Cet ingrédient existe déjà.');
     return;
   }
+
+   // dans les ingrédients de la recette
+     await saveCustomIngredient(name);
+
+  const updated = await getCustomIngredients();
+  setCustomIngredients(updated);
 
   // Concaténer nom + quantité + unité
   const newIngredient = `${name} - ${quantity} ${unit}`;
