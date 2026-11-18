@@ -10,15 +10,29 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import RecipeCard from '@/components/ui/recipe-card';
 import { RecipeColors as C } from '@/constants/theme';
-import { mockRecipes } from '@/data/mock-recipes';
+import { getRecipes } from '@/storage/recipes';
+import { Recipe } from '@/types/recipe';
+import { useEffect, useState } from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [recipes, setRecipes] = useState<Recipe[]>();
+  
+  useEffect(() => {
+    handleRecipes()
+  }, [])
+  
+  async function handleRecipes() {
+    const data = await getRecipes()
+    if (data) {
+      setRecipes(data)
+    }
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
-        data={mockRecipes}
+        data={recipes}
         keyExtractor={(item) => item.id}
         numColumns={2}
         showsVerticalScrollIndicator={false}

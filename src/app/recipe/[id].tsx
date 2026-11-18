@@ -1,27 +1,53 @@
 
-import React from 'react';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
   Image,
-  ScrollView,
   Pressable,
+  ScrollView,
   StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { RecipeColors as C } from '@/constants/theme';
-import { mockRecipes } from '@/data/mock-recipes';
+import { getRecipeById, updateRecipe } from '@/storage/recipes';
+import { NewRecipe, Recipe } from '@/types/recipe';
+import CreateRecipeModal from '../(app)/create-recipe-modal';
 
 export default function RecipeDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [recipe, setRecipe] = useState<Recipe | null>(null)
+  
+  const handleUpdate = async (data: NewRecipe) => {
+    if (!recipe) return;
+    const updated = await updateRecipe(recipe.id, data)
 
-  const recipe = mockRecipes.find(
-    (item) => item.id === id
-  );
+    if (!updated) throw new Error('Recette introuvable.');
+    setRecipe(updated)
+  }
+  
+  // Ouvrir le formulaire
+  const openModal = () => {
+    setModalVisible(true);
+  };
+  // Fermer le formulaire
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
+  async function getRecipe() {
+    const r = await getRecipeById(id)
+    if (r) setRecipe(r)
+  }
+
+  useEffect(() => {
+    getRecipe()
+  }, [])
 
   if (!recipe) {
     return (
@@ -113,10 +139,18 @@ export default function RecipeDetailScreen() {
             color={C.primary}
           />
           <Text style={styles.ingredientText}>
-            {ingredient}
+            {ingredient.quantity} {ingredient.unit} — {ingredient.name}
           </Text>
         </View>
       ))}
+      {/* Formulaire de création */}
+      <CreateRecipeModal
+        visible={modalVisible}
+        onClose={closeModal}
+        onSave={handleUpdate}
+        isEditing={true}
+        recipeToUpdate={recipe}
+      />
     </ScrollView>
   );
 }

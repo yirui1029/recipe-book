@@ -1,5 +1,4 @@
 import {
-  Alert,
   StyleSheet,
   Text,
   View,
@@ -10,14 +9,17 @@ import CreateRecipeModal from '@/app/(app)/create-recipe-modal';
 import RecipeButton from '@/components/ui/recipe-button';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { consumePendingPhoto } from '@/utils/photos';
-import { RecipeColors as C } from '@/constants/theme';
 import { useAuth } from '@/context/AuthProvider';
 import type { NewRecipe } from '@/types/recipe';
 import BotanicalBackground from '@/components/ui/botanical-background';
 import CookingLoader from '@/components/ui/cooking-loader';
 import { getRecipes } from '@/storage/recipes';
+import { consumePendingPhoto } from '@/utils/photos';
+import { RecipeColors as C } from '@/constants/theme';
+import { createRecipe } from '@/storage/recipes';
 
+
+let cameraReturnPending = false;
 
 export default function RecipesScreen() {
   // Contrôle l'affichage du formulaire
@@ -28,6 +30,7 @@ export default function RecipesScreen() {
   // Ouvrir le formulaire
   const openModal = () => {
     setModalVisible(true);
+  
   };
 
   // Fermer le formulaire
@@ -35,36 +38,44 @@ export default function RecipesScreen() {
     setModalVisible(false);
   };
 
-  // Enregistrer une nouvelle recette
-  const handleSaveRecipe = async (recipe: NewRecipe) => {
-    console.log('Nouvelle recette :', recipe);
 
-    // TODO : enregistrer dans Firebase ou dans
-    // le système de stockage prévu par le projet.
+  const router = useRouter();
 
-    Alert.alert(
-      'Succès',
-      'Le formulaire a été validé.'
-    );
+  useEffect(() => {
+
+
+  return () => {
+   
   };
-
-const router = useRouter();
+}, []);
 
 const [photoUri, setPhotoUri] = useState<string>();
 
+
+// ouverture camera 
 const openCamera = () => {
+
+  cameraReturnPending  = true;
+
   setModalVisible(false);
   router.push('/camera');
 };
 
+// detecter le retour camera 
 useFocusEffect(
   useCallback(() => {
+    
+if (!cameraReturnPending) return;
+
+cameraReturnPending = false;
     const uri = consumePendingPhoto();
+
 
     if (uri) {
       setPhotoUri(uri);
-      setModalVisible(true);
     }
+
+    setModalVisible(true);
   }, [])
 );
 
@@ -104,14 +115,11 @@ useFocusEffect(
 
       {/* Formulaire de création */}
       <CreateRecipeModal
-      visible={modalVisible}
-  userId={auth.user?.uid ?? ''}
-  photoUri={photoUri}
-  onOpenCamera={openCamera}
-  onClose={closeModal}
-  onSave={handleSaveRecipe}
-  onRemovePhoto={() => setPhotoUri(undefined)}
-  onSelectPhoto={setPhotoUri}
+        visible={modalVisible}
+        onClose={closeModal}
+        onSave={createRecipe}
+         photoUri={photoUri}
+        onOpenCamera={openCamera}
       />
     </View>
       </BotanicalBackground>

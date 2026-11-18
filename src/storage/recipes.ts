@@ -39,9 +39,6 @@ function requireUid(): string {
   return user.uid;
 }
 
-const cleanIngredients = (ingredients: string[]): string[] =>
-  ingredients.map((i) => i.trim()).filter((i) => i.length > 0);
-
 const toDate = (value: unknown): Date =>
   value instanceof Timestamp ? value.toDate() : new Date();
 
@@ -97,7 +94,7 @@ export async function createRecipe(data: NewRecipe): Promise<Recipe> {
 
   const { photoUri, ...fields } = data;
   const description = fields.description.trim();
-  const ingredients = cleanIngredients(fields.ingredients);
+  const ingredients = fields.ingredients;
 
   const ref = doc(recipesRef); // l'id est généré côté client, avant l'écriture
   const localPhotoUri = photoUri ? await savePhotoForRecipe(ref.id, photoUri) : undefined;
@@ -123,6 +120,7 @@ export async function createRecipe(data: NewRecipe): Promise<Recipe> {
   return {
     ...fields,
     id: ref.id,
+    userId: uid,
     title,
     description,
     ingredients,
@@ -150,7 +148,7 @@ export async function updateRecipe(
     patch.title = title;
   }
   if (fields.description !== undefined) patch.description = fields.description.trim();
-  if (fields.ingredients !== undefined) patch.ingredients = cleanIngredients(fields.ingredients);
+  if (fields.ingredients !== undefined) patch.ingredients = fields.ingredients;
   if (fields.latitude !== undefined) patch.latitude = fields.latitude;
   if (fields.longitude !== undefined) patch.longitude = fields.longitude;
   if (fields.placeName !== undefined) patch.placeName = fields.placeName;
