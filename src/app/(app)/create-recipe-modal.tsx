@@ -110,13 +110,25 @@ export default function CreateRecipeModal({
   const updateForm = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
+
+  //récupérer la photo après le retour de la caméra
+useEffect(() => {
+  if (photoUri) {
+    updateForm('photoUri', photoUri);
+  }
+}, [photoUri]);
+
   // À chaque ouverture : on repart de zéro (création) ou de la recette à modifier (édition).
   // La réinitialisation se fait à l'ouverture et non à la fermeture, pour ne pas vider
   // le formulaire pendant l'animation de fermeture. Le retour de la caméra ne la déclenche pas,
   // car `visible` reste vrai pendant la prise de photo.
   useEffect(() => {
     if (!visible) return;
-    setForm(getInitialValues(isEditing ? recipeToUpdate : undefined));
+    setForm({
+  ...getInitialValues(isEditing ? recipeToUpdate : undefined),
+  photoUri: photoUri,
+});
+
     setIngredientInput('');
     setQuantityInput('');
     setUnit('g');
