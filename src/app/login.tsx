@@ -10,12 +10,16 @@ import {
   Text,
   TextInput,
   View,
+  Image
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { RecipeColors } from "@/constants/theme";
 // Adaptez ce chemin à l'emplacement de votre fichier firebase.ts
 import { auth } from "@/storage/firebase";
+import Ionicons from '@expo/vector-icons/Ionicons';
+import BotanicalBackground from '@/components/ui/botanical-background';
+
 
 type Mode = "login" | "register";
 type TextInputRef = ComponentRef<typeof TextInput>;
@@ -104,6 +108,7 @@ export default function LoginScreen() {
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <BotanicalBackground>
       <ScrollView
         contentContainerStyle={[
           styles.container,
@@ -111,6 +116,21 @@ export default function LoginScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
+        <View style={styles.brand}>
+  <View style={styles.logoBox}>
+    <Ionicons
+      name="restaurant-outline"
+      size={36}
+      color={RecipeColors.primary}
+    />
+  </View>
+
+  <View style={styles.animationContainer}>
+ 
+</View>
+
+  <Text style={styles.brandText}>RecipeBook</Text>
+</View>
         <Text style={styles.title}>{isLogin ? "Connexion" : "Créer un compte"}</Text>
         <Text style={styles.subtitle}>
           {isLogin
@@ -187,7 +207,24 @@ export default function LoginScreen() {
             {isLogin ? "Pas encore de compte ? Créer un compte" : "Déjà un compte ? Se connecter"}
           </Text>
         </Pressable>
+
+        <View style={styles.footer}>
+  <View style={styles.footerDecoration}>
+     <Image
+    source={require('../../assets/images/decorations/cooking-loader.gif')}
+    style={styles.cookingAnimation}
+    resizeMode="contain"
+    blurRadius={2}
+  />
+  </View>
+
+  <Text style={styles.footerText}>
+    Cuisinez, partagez, savourez.
+  </Text>
+</View>
+
       </ScrollView>
+      </BotanicalBackground>
     </KeyboardAvoidingView>
   );
 }
@@ -232,4 +269,60 @@ const styles = StyleSheet.create({
   buttonText: { color: RecipeColors.surface, fontSize: 16, fontWeight: "600" },
   switch: { marginTop: 20, alignItems: "center" },
   switchText: { color: RecipeColors.primary, fontSize: 15 },
+
+  brand: {
+  alignItems: 'center',
+  marginBottom: 32,
+},
+
+logoBox: {
+  width: 82,
+  height: 82,
+  borderRadius: 26,
+  backgroundColor: '#E5EEDB',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginBottom: 12,
+},
+
+brandText: {
+  fontSize: 30,
+  fontWeight: '700',
+  fontStyle: 'italic',
+  color: RecipeColors.primary,
+  letterSpacing: -1,
+},
+
+footer: {
+  marginTop: 44,
+  alignItems: 'center',
+  paddingBottom: 12,
+},
+
+footerDecoration: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 28,
+  marginBottom: 12,
+},
+
+footerText: {
+  fontSize: 13,
+  color: RecipeColors.text,
+  opacity: 0.6,
+  fontStyle: 'italic',
+},
+animationContainer: {
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: 24,
+},
+
+cookingAnimation: {
+  width: 180,
+  height: 180,
+  borderRadius: 90,
+  opacity: 0.85,
+},
 });
