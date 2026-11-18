@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState, useEffect} from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,14 +16,16 @@ import {
 } from 'react-native';
 
 import { RecipeColors as C } from '@/constants/theme';
+import { useAuth } from '@/context/AuthProvider';
 import { INGREDIENTS } from '@/data/ingredients';
+import {
+  getCustomIngredients,
+  saveCustomIngredient
+} from '@/storage/ingredient-storage';
 import type { NewRecipe, Recipe, RecipeIngredient } from '@/types/recipe';
 import { consumePendingPhoto } from '@/utils/photos';
 import * as ImagePicker from 'expo-image-picker';
-import {
-  getCustomIngredients,
-  saveCustomIngredient,
-} from '@/storage/ingredient-storage';
+import { usePathname, useRouter } from 'expo-router';
 
 const UNITS = ['g', 'kg', 'ml', 'L', 'pièce', 'c. à soupe', 'c. à café'];
 
@@ -72,6 +74,10 @@ export default function CreateRecipeModal({
   isEditing = false,
   recipeToUpdate,
 }: CreateRecipeModalProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const visitedCamera = useRef(false);
+  const auth = useAuth();
 
   // État unique du formulaire (création et modification)
   const [form, setForm] = useState<RecipeFormValues>(() =>
@@ -91,7 +97,7 @@ export default function CreateRecipeModal({
   ...new Set([
     ...INGREDIENTS,
     ...customIngredients,
-  ]),
+  ])]
   
   useEffect(() => {
     getCustomIngredients().then(setCustomIngredients);
@@ -116,7 +122,7 @@ export default function CreateRecipeModal({
   }, [visible, isEditing, recipeToUpdate?.id]);
 
   const suggestions = ingredientInput.trim()
-    ? INGREDIENTS.filter((ingredient) =>
+    ? allIngredients.filter((ingredient) =>
         ingredient.toLowerCase().includes(ingredientInput.trim().toLowerCase())
       )
         .filter(
@@ -174,7 +180,11 @@ const addIngredient = async() => {
       return;
     }
 
-    // FIXME : cette ligne n'ajoute rien à la liste (comportement d'origine conservé)
+    //Ajout du nom de l'ingrédient à la liste des propositions
+    await saveCustomIngredient(name)
+    const updated = await getCustomIngredients();
+    setCustomIngredients(updated)
+
     setForm((current) => ({ ...current, ingredients: [...current.ingredients, {name: name, quantity: quantity, unit: unit}] }));
     setIngredientInput('');
     setQuantityInput('');
@@ -244,6 +254,14 @@ const addIngredient = async() => {
       setSaving(false);
     }
   };
+
+  const openCamera = () => {
+    if (saving) return;
+    visitedCamera.current = false;
+    setCameraOpen(true);
+    router.push('/camera');
+  };
+
   // choisir une photo dans le telephone de l'utilisateur 
   const chooseFromGallery = async () => {
   const result = await ImagePicker.launchImageLibraryAsync({
@@ -251,10 +269,6 @@ const addIngredient = async() => {
     allowsEditing: false,
     quality: 0.8,
   });
-
-  if (!result.canceled && result.assets.length > 0) {
-    onSelectPhoto(result.assets[0].uri);
-  }
 };
 
   return (
@@ -303,7 +317,6 @@ const addIngredient = async() => {
                 </>
               )}
             </Pressable>
-
             <Text style={styles.label}>Nom de la recette *</Text>
             <TextInput
               style={styles.input}
