@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { usePathname, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +19,11 @@ import { RecipeColors as C } from '@/constants/theme';
 import { INGREDIENTS } from '@/data/ingredients';
 import type { NewRecipe, Recipe, RecipeIngredient } from '@/types/recipe';
 import { consumePendingPhoto } from '@/utils/photos';
+import * as ImagePicker from 'expo-image-picker';
+import {
+  getCustomIngredients,
+  saveCustomIngredient,
+} from '@/storage/ingredient-storage';
 
 const UNITS = ['g', 'kg', 'ml', 'L', 'pièce', 'c. à soupe', 'c. à café'];
 
@@ -68,9 +72,6 @@ export default function CreateRecipeModal({
   isEditing = false,
   recipeToUpdate,
 }: CreateRecipeModalProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const visitedCamera = useRef(false);
 
   // État unique du formulaire (création et modification)
   const [form, setForm] = useState<RecipeFormValues>(() =>
@@ -85,6 +86,16 @@ export default function CreateRecipeModal({
   // États d'interface
   const [saving, setSaving] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [customIngredients, setCustomIngredients] = useState<string[]>([]);
+  const allIngredients = [
+  ...new Set([
+    ...INGREDIENTS,
+    ...customIngredients,
+  ]),
+  
+  useEffect(() => {
+    getCustomIngredients().then(setCustomIngredients);
+  }, []);
 
   const updateForm = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -117,20 +128,12 @@ export default function CreateRecipeModal({
         .slice(0, 5)
     : [];
 
-  // Sélectionner un ingrédient sans l'ajouter tout de suite :
-  // l'utilisateur doit encore renseigner quantité et unité.
-  const selectIngredient = (ingredient: string) => {
-    setIngredientInput(ingredient);
-  };
+    //etat pour la liste des ingrédients personnalisée
 
   // Attendre un véritable passage par la route caméra avant de lire la photo.
   useEffect(() => {
     if (!cameraOpen) return;
 
-    if (pathname === '/camera') {
-      visitedCamera.current = true;
-      return;
-    }
 
     if (visitedCamera.current) {
       const uri = consumePendingPhoto();
@@ -140,12 +143,12 @@ export default function CreateRecipeModal({
     }
   }, [cameraOpen, pathname]);
 
-  const openCamera = () => {
-    if (saving) return;
-    visitedCamera.current = false;
-    setCameraOpen(true);
-    router.push('/camera');
+  // Sélectionner un ingrédient sans l'ajouter tout de suite :
+  // l'utilisateur doit encore renseigner quantité et unité.
+  const selectIngredient = (ingredient: string) => {
+    setIngredientInput(ingredient);
   };
+
 
   const parseQuantity = () => {
     const raw = quantityInput.trim().replace(',', '.');
@@ -154,9 +157,9 @@ export default function CreateRecipeModal({
     return Number.isFinite(value) && value > 0 ? value : null;
   };
 
-  const addIngredient = () => {
-    const name = ingredientInput.trim();
-    const quantity = parseQuantity();
+const addIngredient = async() => {
+  const name = ingredientInput.trim();
+  const quantity = parseQuantity();
 
     if (!name) {
       Alert.alert('Ingrédient manquant', 'Saisis le nom de l’ingrédient.');
@@ -241,10 +244,22 @@ export default function CreateRecipeModal({
       setSaving(false);
     }
   };
+  // choisir une photo dans le telephone de l'utilisateur 
+  const chooseFromGallery = async () => {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: false,
+    quality: 0.8,
+  });
+
+  if (!result.canceled && result.assets.length > 0) {
+    onSelectPhoto(result.assets[0].uri);
+  }
+};
 
   return (
     <Modal
-      visible={visible && !cameraOpen}
+      visible={visible}
       animationType="slide"
       transparent
       onRequestClose={handleClose}
@@ -543,5 +558,57 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
+ photoPreview: {
+  width: '100%',
+  height: 180,
+  borderRadius: 16,
+},
+deletePhotoButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  borderWidth: 1,
+  borderColor: '#D32F2F',
+  borderRadius: 12,
+  paddingVertical: 12,
+},
+deletePhotoText: {
+  color: '#D32F2F',
+  fontWeight: '600',
+},
+photoActions: {
+  flexDirection: 'row',
+  gap: 10,
+},
+cameraButton: {
+  flex: 1,
+  backgroundColor: C.primary,
+  borderRadius: 12,
+  paddingVertical: 14,
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexDirection: 'row',
+  gap: 6,
+},
+cameraButtonText: {
+  color: '#FFFFFF',
+  fontWeight: '600',
+},
+galleryButton: {
+  flex: 1,
+  borderWidth: 1,
+  borderColor: C.primary,
+  borderRadius: 12,
+  paddingVertical: 14,
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexDirection: 'row',
+  gap: 6,
+},
+galleryButtonText: {
+  color: C.primary,
+  fontWeight: '600',
+},
   suggestionText: { color: C.text, fontSize: 15 },
 });
