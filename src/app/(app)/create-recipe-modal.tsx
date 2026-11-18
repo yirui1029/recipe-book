@@ -55,6 +55,8 @@ function getInitialValues(recipe?: Recipe): RecipeFormValues {
 }
 
 type CreateRecipeModalProps = {
+  photoUri?: string;
+onOpenCamera: () => void;
   visible: boolean;
   onClose: () => void;
   /**
@@ -73,6 +75,8 @@ export default function CreateRecipeModal({
   onSave,
   isEditing = false,
   recipeToUpdate,
+  photoUri,
+  onOpenCamera,
 }: CreateRecipeModalProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -106,13 +110,25 @@ export default function CreateRecipeModal({
   const updateForm = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
+
+  //récupérer la photo après le retour de la caméra
+useEffect(() => {
+  if (photoUri) {
+    updateForm('photoUri', photoUri);
+  }
+}, [photoUri]);
+
   // À chaque ouverture : on repart de zéro (création) ou de la recette à modifier (édition).
   // La réinitialisation se fait à l'ouverture et non à la fermeture, pour ne pas vider
   // le formulaire pendant l'animation de fermeture. Le retour de la caméra ne la déclenche pas,
   // car `visible` reste vrai pendant la prise de photo.
   useEffect(() => {
     if (!visible) return;
-    setForm(getInitialValues(isEditing ? recipeToUpdate : undefined));
+    setForm({
+  ...getInitialValues(isEditing ? recipeToUpdate : undefined),
+  photoUri: photoUri,
+});
+
     setIngredientInput('');
     setQuantityInput('');
     setUnit('g');
@@ -263,12 +279,21 @@ const addIngredient = async() => {
   };
 
   // choisir une photo dans le telephone de l'utilisateur 
-  const chooseFromGallery = async () => {
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    allowsEditing: false,
-    quality: 0.8,
-  });
+ const chooseFromGallery = async () => {
+  try {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      updateForm('photoUri', result.assets[0].uri);
+    }
+  } catch (error) {
+    console.error('Erreur galerie :', error);
+    Alert.alert('Erreur', "Impossible d'ouvrir la galerie.");
+  }
 };
 
   return (
@@ -301,22 +326,52 @@ const addIngredient = async() => {
             contentContainerStyle={styles.form}
           >
             {/* Photo : fonctionnalité existante conservée */}
-            <Pressable style={styles.photoBox} onPress={openCamera} disabled={saving}>
-              {form.photoUri ? (
-                <>
-                  <Image source={{ uri: form.photoUri }} style={styles.photo} />
-                  <View style={styles.photoOverlay}>
-                    <Ionicons name="camera-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.changePhotoText}>Reprendre une photo</Text>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Ionicons name="camera-outline" size={34} color={C.primary} />
-                  <Text style={styles.photoLabel}>Prendre une photo</Text>
-                </>
-              )}
-            </Pressable>
+        <View style={{ gap: 12 }}>
+  {form.photoUri && (
+    <>
+      <Image
+        source={{ uri: form.photoUri }}
+        style={styles.photoPreview}
+        resizeMode="cover"
+      />
+
+      <Pressable
+        style={styles.deletePhotoButton}
+        onPress={() => updateForm('photoUri', undefined)}
+        disabled={saving}
+      >
+        <Ionicons
+          name="trash-outline"
+          size={20}
+          color="#D32F2F"
+        />
+        <Text style={styles.deletePhotoText}>
+          Supprimer la photo
+        </Text>
+      </Pressable>
+    </>
+  )}
+
+  <View style={styles.photoActions}>
+    <Pressable
+      style={styles.cameraButton}
+      onPress={onOpenCamera}
+      disabled={saving}
+    >
+      <Ionicons name="camera-outline" size={22} color="#FFFFFF" />
+      <Text style={styles.cameraButtonText}>Caméra</Text>
+    </Pressable>
+
+    <Pressable
+      style={styles.galleryButton}
+      onPress={chooseFromGallery}
+      disabled={saving}
+    >
+      <Ionicons name="images-outline" size={22} color={C.primary} />
+      <Text style={styles.galleryButtonText}>Galerie</Text>
+    </Pressable>
+  </View>
+</View>
             <Text style={styles.label}>Nom de la recette *</Text>
             <TextInput
               style={styles.input}

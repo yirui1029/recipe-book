@@ -6,11 +6,14 @@ import {
 
 import CreateRecipeModal from '@/app/(app)/create-recipe-modal';
 import RecipeButton from '@/components/ui/recipe-button';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState, useEffect} from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { consumePendingPhoto } from '@/utils/photos';
 import { RecipeColors as C } from '@/constants/theme';
 import { createRecipe } from '@/storage/recipes';
+
+
+let cameraReturnPending = false;
 
 export default function RecipesScreen() {
   // Contrôle l'affichage du formulaire
@@ -19,12 +22,55 @@ export default function RecipesScreen() {
   // Ouvrir le formulaire
   const openModal = () => {
     setModalVisible(true);
+  
   };
 
   // Fermer le formulaire
   const closeModal = () => {
     setModalVisible(false);
   };
+
+
+  const router = useRouter();
+
+  useEffect(() => {
+
+
+  return () => {
+   
+  };
+}, []);
+
+const [photoUri, setPhotoUri] = useState<string>();
+
+
+// ouverture camera 
+const openCamera = () => {
+
+  cameraReturnPending  = true;
+
+  setModalVisible(false);
+  router.push('/camera');
+};
+
+// detecter le retour camera 
+useFocusEffect(
+  useCallback(() => {
+    
+if (!cameraReturnPending) return;
+
+cameraReturnPending = false;
+    const uri = consumePendingPhoto();
+
+
+    if (uri) {
+      setPhotoUri(uri);
+    }
+
+    setModalVisible(true);
+  }, [])
+);
+
 
   return (
     <View style={styles.container}>
@@ -47,6 +93,8 @@ export default function RecipesScreen() {
         visible={modalVisible}
         onClose={closeModal}
         onSave={createRecipe}
+         photoUri={photoUri}
+        onOpenCamera={openCamera}
       />
     </View>
   );
