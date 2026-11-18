@@ -3,7 +3,7 @@ export interface Recipe {
   userId: string,
   title: string,
   description: string,
-  ingredients: string[],
+  ingredients: RecipeIngredient[],
   photoUri?: string,
   latitude?: number,
   longitude?: number,
@@ -13,14 +13,14 @@ export interface Recipe {
   hasPhoto: boolean
 }
 
-/** Données saisies par l'utilisateur : l'id et les dates sont générés ici. */
-export type NewRecipe = Omit<Recipe, "id" | "createdAt" | "updatedAt" | "hasPhoto">;
-export type RecipeUpdate = Partial<Omit<NewRecipe, "photoUri">> & {
-  photoUri?: string | null;
-};
+export type RecipeIngredient = {
+  name: string
+  quantity: number
+  unit: string
+}
 
-/** Format réellement stocké : JSON ne gère pas les Date, on les stocke en ISO. */
-export type StoredRecipe = Omit<Recipe, "createdAt" | "updatedAt"> & {
-  createdAt: string;
-  updatedAt: string;
+export type NewRecipe = Omit<Recipe, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'hasPhoto'>;
+
+export type RecipeUpdate = Partial<Omit<NewRecipe, 'photoUri'>> & {
+  photoUri?: string | null; // une URI pour changer la photo, null pour la supprimer
 };
