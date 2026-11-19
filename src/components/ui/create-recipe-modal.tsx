@@ -21,10 +21,12 @@ import { RecipeColors as C } from '@/constants/theme';
 import { useRecipeIngredient } from '@/hooks/use-recipe-ingredient';
 import type { NewRecipe, Recipe } from '@/types/recipe';
 import { RecipeFormValues } from '@/types/recipeForm';
+import { useLocation } from '@/hooks/use-location';
 
 function getInitialValues(recipe?: Recipe): RecipeFormValues {
   if (!recipe) {
-    return { title: '', description: '', ingredients: [], photoUri: undefined, placeName: '' };
+    return { title: '', description: '', ingredients: [], photoUri: undefined, placeName: '',latitude: undefined,
+      longitude: undefined, };
   }
   return {
     title: recipe.title,
@@ -32,6 +34,8 @@ function getInitialValues(recipe?: Recipe): RecipeFormValues {
     ingredients: recipe.ingredients,
     photoUri: recipe.photoUri,
     placeName: recipe.placeName ?? '',
+    latitude: recipe.latitude,
+    longitude: recipe.longitude,
   };
 }
 
@@ -60,8 +64,19 @@ export default function CreateRecipeModal({
   const [form, setForm] = useState<RecipeFormValues>(() =>
     getInitialValues(isEditing ? recipeToUpdate : undefined)
   );
+  //utiliser la methode de useLocation pour recuperer la position de l'utilisateur 
+  const { getCurrentLocation } = useLocation();
+  //fonction pour recuperer et enregistrer la localisation de la formulaire 
+  const handleLocation = async () => {
+  const location = await getCurrentLocation();
 
-  
+  if (!location) return;
+
+  updateForm('latitude', location.latitude);
+  updateForm('longitude', location.longitude);
+  updateForm('placeName', location.placeName);
+};
+
   // États d'interface
   const [saving, setSaving] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -197,15 +212,26 @@ export default function CreateRecipeModal({
 
             </View>
 
-            <Text style={styles.label}>Lieu (facultatif)</Text>
-            <TextInput
-              style={styles.input}
-              value={form.placeName}
-              onChangeText={(value) => updateForm('placeName', value)}
-              placeholder="Bordeaux, Paris"
-              placeholderTextColor="#999999"
-              editable={!saving}
-            />
+            <Pressable
+  style={styles.locationButton}
+  onPress={handleLocation}
+>
+  <Ionicons
+    name="location-outline"
+    size={20}
+    color={C.primary}
+  />
+
+  <Text style={styles.locationButtonText}>
+    Utiliser ma position actuelle
+  </Text>
+</Pressable>
+
+{form.placeName ? (
+  <Text>
+    📍 {form.placeName}
+  </Text>
+) : null}
 
             <Pressable
               style={[styles.saveButton, saving && styles.disabled]}
@@ -293,4 +319,22 @@ const styles = StyleSheet.create({
   },
   saveText: { color: C.surface, fontSize: 15, fontWeight: '600' },
   disabled: { opacity: 0.6 },
+  locationButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  paddingVertical: 12,
+  paddingHorizontal: 16,
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: C.primary,
+  marginTop: 12,
+},
+
+locationButtonText: {
+  color: C.primary,
+  fontSize: 14,
+  fontWeight: '600',
+},
 });

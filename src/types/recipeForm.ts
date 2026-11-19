@@ -10,4 +10,6 @@ export interface RecipeFormValues {
   ingredients: RecipeIngredient[];
   photoUri?: string;
   placeName: string;
+  latitude?: number;
+  longitude?: number;
 }
