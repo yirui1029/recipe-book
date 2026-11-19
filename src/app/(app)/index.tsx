@@ -8,12 +8,14 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BotanicalBackground from '@/components/ui/botanical-background';
 
 import RecipeCard from '@/components/ui/recipe-card';
 import { RecipeColors as C } from '@/constants/theme';
 import { getRecipes } from '@/storage/recipes';
 import { Recipe } from '@/types/recipe';
 import { useCallback, useState } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -40,7 +42,9 @@ export default function HomeScreen() {
 }
 
   return (
+    
     <SafeAreaView style={styles.container} edges={['top']}>
+      <BotanicalBackground>
       <FlatList
         data={recipes}
         keyExtractor={(item) => item.id}
@@ -49,20 +53,34 @@ export default function HomeScreen() {
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.content}
         ListHeaderComponent={
-          <View style={styles.header}>
-            <Text style={styles.title}>
-              Recipe-Book
-            </Text>
+  <View style={styles.header}>
+    <View style={styles.brandRow}>
+      <Ionicons
+        name="restaurant-outline"
+        size={28}
+        color={C.primary}
+      />
+      <Text style={styles.title}>RecipeBook</Text>
+      <Ionicons
+        name="leaf-outline"
+        size={24}
+        color={C.primary}
+      />
+    </View>
 
-            <Text style={styles.sectionTitle}>
-              Mes recettes
-            </Text>
+    <View style={styles.welcomeCard}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.sectionTitle}>
+          Mes recettes
+        </Text>
+        <Text style={styles.subtitle}>
+          Retrouve toutes tes créations gourmandes !
+        </Text>
+      </View>
 
-            <Text style={styles.subtitle}>
-              Découvre tes recettes préférées !
-            </Text>
-          </View>
-        }
+    </View>
+  </View>
+}
         ListEmptyComponent={
   loading ? (
     <View style={styles.emptyContainer}>
@@ -95,8 +113,10 @@ export default function HomeScreen() {
             />
           </View>
         )}
-      />
+      /> 
+      </BotanicalBackground>
     </SafeAreaView>
+   
   );
 }
 
@@ -118,23 +138,23 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: C.text,
-    textAlign: 'center',
-    marginBottom: 32,
+   fontSize: 28,
+  fontWeight: 'bold',
+  color: C.primary,
+  textAlign: 'center',
   },
 
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: C.text,
-    marginBottom: 8,
+     fontSize: 22,
+  fontWeight: 'bold',
+  color: C.text,
+  marginBottom: 8,
   },
 
   subtitle: {
-    fontSize: 14,
-    color: C.primary,
+      fontSize: 14,
+  color: C.primary,
+  lineHeight: 20,
   },
 
   row: {
@@ -158,4 +178,22 @@ const styles = StyleSheet.create({
     color: C.text,
     textAlign: 'center',
   },
+  brandRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 10,
+  marginBottom: 24,
+},
+
+welcomeCard: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  padding: 20,
+  backgroundColor: 'rgba(226, 235, 217, 0.35)',
+  borderRadius: 20,
+  borderWidth: 1,
+  borderColor: 'rgba(82, 122, 82, 0.10)',
+  gap: 12,
+},
 });
