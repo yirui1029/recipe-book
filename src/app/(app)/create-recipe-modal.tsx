@@ -16,30 +16,13 @@ import {
 } from 'react-native';
 
 import { RecipeColors as C } from '@/constants/theme';
-import { useAuth } from '@/context/AuthProvider';
-import { INGREDIENTS } from '@/data/ingredients';
-import {
-  getCustomIngredients,
-  saveCustomIngredient
-} from '@/storage/ingredient-storage';
-import type { NewRecipe, Recipe, RecipeIngredient } from '@/types/recipe';
+import { UNITS } from '@/constants/units';
+import { useRecipeIngredient } from '@/hooks/use-recipe-ingredient';
+import type { NewRecipe, Recipe } from '@/types/recipe';
+import { RecipeFormValues } from '@/types/recipeForm';
 import { consumePendingPhoto } from '@/utils/photos';
 import * as ImagePicker from 'expo-image-picker';
 import { usePathname, useRouter } from 'expo-router';
-
-const UNITS = ['g', 'kg', 'ml', 'L', 'pièce', 'c. à soupe', 'c. à café'];
-
-/**
- * Un seul état pour le contenu de la recette, que l'on crée ou que l'on modifie :
- * seule sa valeur de départ change (vide, ou issue de la recette à modifier).
- */
-interface RecipeFormValues {
-  title: string;
-  description: string;
-  ingredients: RecipeIngredient[];
-  photoUri?: string;
-  placeName: string;
-}
 
 function getInitialValues(recipe?: Recipe): RecipeFormValues {
   if (!recipe) {
@@ -81,35 +64,24 @@ export default function CreateRecipeModal({
   const router = useRouter();
   const pathname = usePathname();
   const visitedCamera = useRef(false);
-  const auth = useAuth();
-
   // État unique du formulaire (création et modification)
   const [form, setForm] = useState<RecipeFormValues>(() =>
     getInitialValues(isEditing ? recipeToUpdate : undefined)
   );
 
-  // Saisie en cours d'un ingrédient : brouillon temporaire, hors recette
-  const [ingredientInput, setIngredientInput] = useState('');
-  const [quantityInput, setQuantityInput] = useState('');
-  const [unit, setUnit] = useState('g');
-
+  
   // États d'interface
   const [saving, setSaving] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [customIngredients, setCustomIngredients] = useState<string[]>([]);
-  const allIngredients = [
-  ...new Set([
-    ...INGREDIENTS,
-    ...customIngredients,
-  ])]
-  
-  useEffect(() => {
-    getCustomIngredients().then(setCustomIngredients);
-  }, []);
-
-  const updateForm = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) =>
+  const updateForm = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
-
+    
+  }
+  
+  const {
+    draft, updateDraft, resetDraft, hasPending,
+    suggestions, addIngredient, removeIngredient, getIngredientLabel,
+  } = useRecipeIngredient(form, updateForm);
 
   //récupérer la photo après le retour de la caméra
 useEffect(() => {
@@ -129,26 +101,11 @@ useEffect(() => {
   photoUri: photoUri,
 });
 
-    setIngredientInput('');
-    setQuantityInput('');
-    setUnit('g');
+    resetDraft();
     setCameraOpen(false);
     visitedCamera.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, isEditing, recipeToUpdate?.id]);
-
-  const suggestions = ingredientInput.trim()
-    ? allIngredients.filter((ingredient) =>
-        ingredient.toLowerCase().includes(ingredientInput.trim().toLowerCase())
-      )
-        .filter(
-          (ingredient) =>
-            !form.ingredients.some(
-              (item) => item!.name.toLowerCase() === ingredient.toLowerCase()
-            )
-        )
-        .slice(0, 5)
-    : [];
 
     //etat pour la liste des ingrédients personnalisée
 
@@ -165,54 +122,7 @@ useEffect(() => {
     }
   }, [cameraOpen, pathname]);
 
-  // Sélectionner un ingrédient sans l'ajouter tout de suite :
-  // l'utilisateur doit encore renseigner quantité et unité.
-  const selectIngredient = (ingredient: string) => {
-    setIngredientInput(ingredient);
-  };
-
-
-  const parseQuantity = () => {
-    const raw = quantityInput.trim().replace(',', '.');
-    if (!raw) return null;
-    const value = Number(raw);
-    return Number.isFinite(value) && value > 0 ? value : null;
-  };
-
-const addIngredient = async() => {
-  const name = ingredientInput.trim();
-  const quantity = parseQuantity();
-
-    if (!name) {
-      Alert.alert('Ingrédient manquant', 'Saisis le nom de l’ingrédient.');
-      return;
-    }
-    if (quantity === null) {
-      Alert.alert('Quantité invalide', 'Saisis une quantité supérieure à zéro.');
-      return;
-    }
-    if (form.ingredients.some((item) => item!.name.toLowerCase() === name.toLowerCase())) {
-      Alert.alert('Ingrédient déjà ajouté', 'Cet ingrédient est déjà dans la liste.');
-      return;
-    }
-
-    //Ajout du nom de l'ingrédient à la liste des propositions
-    await saveCustomIngredient(name)
-    const updated = await getCustomIngredients();
-    setCustomIngredients(updated)
-
-    setForm((current) => ({ ...current, ingredients: [...current.ingredients, {name: name, quantity: quantity, unit: unit}] }));
-    setIngredientInput('');
-    setQuantityInput('');
-    setUnit('g');
-  };
-
-  const removeIngredient = (index: number) => {
-    setForm((current) => ({
-      ...current,
-      ingredients: current.ingredients.filter((_, i) => i !== index),
-    }));
-  };
+  
 
   const handleClose = () => {
     if (saving) return;
@@ -224,20 +134,12 @@ const addIngredient = async() => {
 
     const cleanTitle = form.title.trim();
     const cleanDescription = form.description.trim();
-    const pendingName = ingredientInput.trim();
+    const pendingName = draft.name.trim();
+
+    if (hasPending) { Alert.alert('Ingrédient en cours', '...'); return; }
 
     if (!cleanTitle || !cleanDescription) {
       Alert.alert('Champs obligatoires', 'Ajoute un titre et une description.');
-      return;
-    }
-
-    // Si un ingrédient est encore saisi, on demande de cliquer sur +
-    // pour éviter de perdre sa quantité.
-    if (pendingName || quantityInput.trim()) {
-      Alert.alert(
-        'Ingrédient en cours',
-        'Clique sur + pour ajouter ton ingrédient et sa quantité avant d’enregistrer.'
-      );
       return;
     }
 
@@ -398,8 +300,8 @@ const addIngredient = async() => {
             <Text style={styles.label}>Ingrédients *</Text>
             <TextInput
               style={styles.input}
-              value={ingredientInput}
-              onChangeText={setIngredientInput}
+              value={draft.name}
+              onChangeText={(value) => updateDraft('name', value)}
               placeholder="Rechercher un ingrédient..."
               placeholderTextColor="#999999"
               editable={!saving}
@@ -411,7 +313,7 @@ const addIngredient = async() => {
                   <Pressable
                     key={ingredient}
                     style={styles.suggestionItem}
-                    onPress={() => selectIngredient(ingredient)}
+                    onPress={() => updateDraft('name', ingredient)}
                     disabled={saving}
                   >
                     <Text style={styles.suggestionText}>{ingredient}</Text>
@@ -426,8 +328,8 @@ const addIngredient = async() => {
             <View style={styles.quantityRow}>
               <TextInput
                 style={[styles.input, styles.quantityInput]}
-                value={quantityInput}
-                onChangeText={setQuantityInput}
+                value={draft.quantity}
+                onChangeText={(value) => updateDraft('quantity', value)}
                 placeholder="Ex. 200"
                 placeholderTextColor="#999999"
                 keyboardType="decimal-pad"
@@ -447,11 +349,11 @@ const addIngredient = async() => {
               {UNITS.map((item) => (
                 <Pressable
                   key={item}
-                  onPress={() => setUnit(item)}
+                  onPress={() => updateDraft('unit', item)}
                   disabled={saving}
-                  style={[styles.unitButton, unit === item && styles.unitButtonActive]}
+                  style={[styles.unitButton, draft.unit === item && styles.unitButtonActive]}
                 >
-                  <Text style={[styles.unitText, unit === item && styles.unitTextActive]}>
+                  <Text style={[styles.unitText, draft.unit === item && styles.unitTextActive]}>
                     {item}
                   </Text>
                 </Pressable>
@@ -469,7 +371,7 @@ const addIngredient = async() => {
                 >
                   {/* FIXME : affiche la saisie en cours, pas la quantité de cet ingrédient (comportement d'origine conservé) */}
                   <Text style={styles.chipText}>
-                    {ingredient.quantity} {ingredient.unit} — {ingredient.name}
+                    {getIngredientLabel(index)}
                   </Text>
                   <Ionicons name="close-circle" size={16} color={C.text} />
                 </Pressable>
