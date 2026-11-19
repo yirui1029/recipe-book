@@ -14,6 +14,7 @@ import {
   View
 } from 'react-native';
 
+import CameraScreen from '@/components/ui/camera-screen';
 import IngredientEditor from '@/components/ui/ingredient-editor';
 import RecipePhotoPicker from '@/components/ui/recipe-photo-picker';
 import { RecipeColors as C } from '@/constants/theme';
@@ -42,7 +43,6 @@ type CreateRecipeModalProps = {
   photoUri?: string;
   visible: boolean;
   onClose: () => void;
-  onOpenCamera: () => void;
   /**
    * Appelé à l'enregistrement, en création comme en modification.
    * C'est le parent qui choisit la méthode à appeler (création ou modification).
@@ -59,9 +59,7 @@ export default function CreateRecipeModal({
   onSave,
   isEditing = false,
   recipeToUpdate,
-  photoUri,
-  onOpenCamera,
-}: CreateRecipeModalProps) {
+  }: CreateRecipeModalProps) {
   // État unique du formulaire (création et modification)
   const [form, setForm] = useState<RecipeFormValues>(() =>
     getInitialValues(isEditing ? recipeToUpdate : undefined)
@@ -81,28 +79,19 @@ export default function CreateRecipeModal({
 
   // États d'interface
   const [saving, setSaving] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const updateForm = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     
   }
   const { hasPending, resetDraft } = useRecipeIngredient(form, updateForm);
-  //récupérer la photo après le retour de la caméra
-  useEffect(() => {
-    if (photoUri) {
-      updateForm('photoUri', photoUri);
-    }
-  }, [photoUri]);
 
   // À chaque ouverture : on repart de zéro (création) ou de la recette à modifier (édition).
   // La réinitialisation se fait à l'ouverture et non à la fermeture, pour ne pas vider
   // le formulaire pendant l'animation de fermeture.
   useEffect(() => {
     if (!visible) return;
-    setForm({
-      ...getInitialValues(isEditing ? recipeToUpdate : undefined),
-      photoUri: photoUri,
-    });
-
+    setForm(getInitialValues(isEditing ? recipeToUpdate : undefined));
     resetDraft();
   }, [visible, isEditing, recipeToUpdate?.id]);
 
@@ -133,7 +122,7 @@ export default function CreateRecipeModal({
       title: cleanTitle,
       description: cleanDescription,
       ingredients: form.ingredients,
-      ...(form.photoUri ? { photoUri: form.photoUri } : {}),
+      photoUri: form.photoUri, // undefined si supprimée
       ...(form.placeName.trim() ? { placeName: form.placeName.trim() } : {}),
     };
 
@@ -159,7 +148,7 @@ export default function CreateRecipeModal({
       visible={visible}
       animationType="slide"
       transparent
-      onRequestClose={handleClose}
+      onRequestClose={() => setCameraOpen(false)}
     >
       <KeyboardAvoidingView
         style={styles.overlay}
@@ -188,7 +177,7 @@ export default function CreateRecipeModal({
             form={form}
             updateForm={updateForm}
             saving={saving}
-            onOpenCamera={onOpenCamera}
+            onOpenCamera={() => setCameraOpen(true)}
           />
         </View>
         <View>
@@ -260,6 +249,19 @@ export default function CreateRecipeModal({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+      <Modal
+      visible={cameraOpen}
+      animationType="slide"
+      onRequestClose={() => setCameraOpen(false)}
+    >
+      <CameraScreen
+        onCancel={() => setCameraOpen(false)}
+        onPhoto={(uri) => {
+          updateForm('photoUri', uri);
+          setCameraOpen(false);
+        }}
+      />
+    </Modal>
     </Modal>
   );
 }

@@ -22,22 +22,15 @@ export default function RecipeDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [modalVisible, setModalVisible] = useState(false);
-  const [recipe, setRecipe] = useState<Recipe | null>(null);
-
+  const [recipe, setRecipe] = useState<Recipe | null>(null)
+    
   const handleUpdate = async (data: NewRecipe) => {
     if (!recipe) return;
-
-    const { photoUri, ...fields } = data;
-
-    const updated = await updateRecipe(recipe.id, fields);
-
-    if (!updated) {
-      throw new Error("Recette introuvable.");
-    }
-
+    const updated = await updateRecipe(recipe.id, {...data, photoUri: data.photoUri ?? null});
+    if (!updated) throw new Error('Recette introuvable.');
     setRecipe(updated);
   };
-
+  
   // Ouvrir le formulaire
   const openModal = () => {
     setModalVisible(true);

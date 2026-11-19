@@ -1,26 +1,28 @@
 import { RecipeColors as C } from '@/constants/theme';
 import { usePhotoGallery } from "@/hooks/use-photo-gallery";
 import { RecipeFormValues } from "@/types/recipeForm";
+import { deletePhoto } from '@/utils/photos';
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-
 export default function RecipePhotoPicker({
-  form,
-  updateForm,
-  saving,
-  onOpenCamera
+  form, updateForm, saving, onOpenCamera,
 }: {
   form: RecipeFormValues;
   updateForm: <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => void;
-  onOpenCamera: () => void;
   saving: boolean;
+  onOpenCamera: () => void;
 }) {
   const { chooseFromGallery } = usePhotoGallery();
 
   const handleGalleryPress = async () => {
     const uri = await chooseFromGallery();
-    updateForm('photoUri', uri);
+    if (uri) updateForm('photoUri', uri);
+  };
+
+  const handleDelete = () => {
+    updateForm('photoUri', undefined)
+    deletePhoto(form.photoUri);
   }
 
   return (
@@ -35,7 +37,7 @@ export default function RecipePhotoPicker({
 
       <Pressable
         style={styles.deletePhotoButton}
-        onPress={() => updateForm('photoUri', undefined)}
+        onPress={handleDelete}
         disabled={saving}
       >
         <Ionicons
