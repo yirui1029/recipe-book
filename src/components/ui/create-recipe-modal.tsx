@@ -80,8 +80,7 @@ export default function CreateRecipeModal({
 
   // À chaque ouverture : on repart de zéro (création) ou de la recette à modifier (édition).
   // La réinitialisation se fait à l'ouverture et non à la fermeture, pour ne pas vider
-  // le formulaire pendant l'animation de fermeture. Le retour de la caméra ne la déclenche pas,
-  // car `visible` reste vrai pendant la prise de photo.
+  // le formulaire pendant l'animation de fermeture.
   useEffect(() => {
     if (!visible) return;
     setForm({

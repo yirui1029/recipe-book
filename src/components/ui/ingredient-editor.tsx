@@ -9,40 +9,38 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 export default function IngredientEditor({ form, updateForm, saving }: { form: RecipeFormValues; updateForm: SetForm; saving: boolean }) {
 
   const {
-      draft, updateDraft, resetDraft, hasPending,
+      draft, updateDraft,
       suggestions, addIngredient, removeIngredient, getIngredientLabel,
     } = useRecipeIngredient(form, updateForm);
 
   return (
     <>
-    <Text style={styles.label}>Ingrédients *</Text>
-            <TextInput
-              style={styles.input}
-              value={draft.name}
-              onChangeText={(value) => updateDraft('name', value)}
-              placeholder="Rechercher un ingrédient..."
-              placeholderTextColor="#999999"
-              editable={!saving}
-            />
+      <Text style={styles.label}>Ingrédients *</Text>
+      <TextInput
+        style={styles.input}
+        value={draft.name}
+        onChangeText={(value) => updateDraft('name', value)}
+        placeholder="Rechercher un ingrédient..."
+        placeholderTextColor="#999999"
+        editable={!saving}
+      />
 
-    {suggestions.length > 0 && (
-              <View style={styles.suggestions}>
-                {suggestions.map((ingredient) => (
-                  <Pressable
-                    key={ingredient}
-                    style={styles.suggestionItem}
-                    onPress={() => updateDraft('name', ingredient)}
-                    disabled={saving}
-                  >
-                    <Text style={styles.suggestionText}>{ingredient}</Text>
-                    <Ionicons name="checkmark-circle-outline" size={20} color={C.primary} />
-                  </Pressable>
-                ))}
+      {suggestions.length > 0 && (
+        <View style={styles.suggestions}>
+        {suggestions.map((ingredient) => (
+            <Pressable
+              key={ingredient}
+              style={styles.suggestionItem}
+              onPress={() => updateDraft('name', ingredient)}
+              disabled={saving}
+            >
+            <Text style={styles.suggestionText}>{ingredient}</Text>
+            <Ionicons name="checkmark-circle-outline" size={20} color={C.primary} />
+            </Pressable>
+        ))}
         </View>
       )}
-
-            {/* NOUVEAU : quantité et unité */}
-            <Text style={styles.label}>Quantité et unité *</Text>
+        <Text style={styles.label}>Quantité et unité *</Text>
             <View style={styles.quantityRow}>
               <TextInput
                 style={[styles.input, styles.quantityInput]}
