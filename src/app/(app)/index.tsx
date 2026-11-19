@@ -1,5 +1,5 @@
 
-import { useRouter } from 'expo-router';
+import {useFocusEffect, useRouter } from 'expo-router';
 import {
   FlatList,
   StyleSheet,
@@ -12,15 +12,17 @@ import RecipeCard from '@/components/ui/recipe-card';
 import { RecipeColors as C } from '@/constants/theme';
 import { getRecipes } from '@/storage/recipes';
 import { Recipe } from '@/types/recipe';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [recipes, setRecipes] = useState<Recipe[]>();
   
-  useEffect(() => {
-    handleRecipes()
+  useFocusEffect(
+  useCallback(() => {
+    handleRecipes();
   }, [])
+);
   
   async function handleRecipes() {
     const data = await getRecipes()

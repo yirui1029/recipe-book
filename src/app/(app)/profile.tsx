@@ -125,7 +125,7 @@ export default function ProfileScreen() {
 
         <Pressable
           style={styles.infoRow}
-          onPress={() => router.push('/recipes')}
+          onPress={() => router.navigate('/(app)')}
         >
           <Ionicons
             name="book-outline"
