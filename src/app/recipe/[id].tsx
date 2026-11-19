@@ -7,13 +7,15 @@ import {
   StyleSheet,
   Text,
   View,
+  Alert
 } from 'react-native';
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RecipeColors as C } from '@/constants/theme';
-import { getRecipeById, updateRecipe } from '@/storage/recipes';
+import { getRecipeById, updateRecipe, deleteRecipe } from '@/storage/recipes';
 import { NewRecipe, Recipe } from '@/types/recipe';
 import CreateRecipeModal from '../(app)/create-recipe-modal';
 
@@ -24,12 +26,18 @@ export default function RecipeDetailScreen() {
   const [recipe, setRecipe] = useState<Recipe | null>(null)
   
   const handleUpdate = async (data: NewRecipe) => {
-    if (!recipe) return;
-    const updated = await updateRecipe(recipe.id, data)
+  if (!recipe) return;
 
-    if (!updated) throw new Error('Recette introuvable.');
-    setRecipe(updated)
+  const { photoUri, ...fields } = data;
+
+  const updated = await updateRecipe(recipe.id, fields);
+
+  if (!updated) {
+    throw new Error('Recette introuvable.');
   }
+
+  setRecipe(updated);
+};
   
   // Ouvrir le formulaire
   const openModal = () => {
@@ -39,6 +47,44 @@ export default function RecipeDetailScreen() {
   const closeModal = () => {
     setModalVisible(false);
   };
+
+
+  const handleDelete = () => {
+  if (!recipe) return;
+
+  Alert.alert(
+    'Supprimer la recette',
+    `Voulez-vous vraiment supprimer "${recipe.title}" ?`,
+    [
+      {
+        text: 'Annuler',
+        style: 'cancel',
+      },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const deleted = await deleteRecipe(recipe.id);
+
+            if (!deleted) {
+              Alert.alert('Erreur', 'Recette introuvable.');
+              return;
+            }
+
+            router.back();
+          } catch (error) {
+            console.error('Erreur suppression :', error);
+            Alert.alert(
+              'Erreur',
+              'Impossible de supprimer la recette.'
+            );
+          }
+        },
+      },
+    ]
+  );
+};
 
   async function getRecipe() {
     const r = await getRecipeById(id)
@@ -66,6 +112,7 @@ export default function RecipeDetailScreen() {
   }
 
   return (
+    <SafeAreaView style={styles.container} edges={['top']}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -143,15 +190,46 @@ export default function RecipeDetailScreen() {
           </Text>
         </View>
       ))}
-      {/* Formulaire de création */}
-      <CreateRecipeModal
-        visible={modalVisible}
-        onClose={closeModal}
-        onSave={handleUpdate}
-        isEditing={true}
-        recipeToUpdate={recipe}
-      />
+      {/* Formulaire de création -lors que le button de modification recette cliqué*/}
+<CreateRecipeModal
+  visible={modalVisible}
+  onClose={closeModal}
+  onSave={handleUpdate}
+  isEditing={true}
+  recipeToUpdate={recipe}
+
+/>
+
+  {/* Bouton de suppression */}
+    <Pressable
+  style={styles.deleteButton}
+  onPress={handleDelete}
+>
+  <Ionicons
+    name="trash-outline"
+    size={20}
+    color="#DC2626"
+  />
+  <Text style={styles.deleteButtonText}>
+    Supprimer la recette
+  </Text>
+    </Pressable>
+ {/* Bouton de update */}
+    <Pressable
+  style={styles.editButton}
+  onPress={openModal}
+>
+  <Ionicons
+    name="create-outline"
+    size={20}
+    color={C.surface}
+  />
+  <Text style={styles.editButtonText}>
+    Modifier la recette
+  </Text>
+</Pressable>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -172,10 +250,12 @@ const styles = StyleSheet.create({
     backgroundColor: C.background,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+     flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+  marginTop: 8,
+  marginBottom: 12,
+  paddingVertical: 8,
   },
   backText: {
     color: C.primary,
@@ -233,4 +313,38 @@ const styles = StyleSheet.create({
     fontSize: 15,
     flex: 1,
   },
+  deleteButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 10,
+  marginTop: 24,
+  paddingVertical: 14,
+  borderWidth: 1,
+  borderColor: '#DC2626',
+  borderRadius: 12,
+  backgroundColor: C.surface,
+},
+
+deleteButtonText: {
+  color: '#DC2626',
+  fontSize: 16,
+  fontWeight: '600',
+},
+editButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 10,
+  marginTop: 24,
+  paddingVertical: 14,
+  backgroundColor: C.primary,
+  borderRadius: 12,
+},
+
+editButtonText: {
+  color: C.surface,
+  fontSize: 16,
+  fontWeight: '600',
+},
 });
