@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   View,
-  Alert
 } from 'react-native';
 
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -15,9 +14,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RecipeColors as C } from '@/constants/theme';
-import { getRecipeById, updateRecipe, deleteRecipe } from '@/storage/recipes';
+import { deleteRecipe, getRecipeById, updateRecipe } from '@/storage/recipes';
 import { NewRecipe, Recipe } from '@/types/recipe';
-import CreateRecipeModal from '../(app)/create-recipe-modal';
+import CreateRecipeModal from '../../components/ui/create-recipe-modal';
 
 export default function RecipeDetailScreen() {
   const router = useRouter();
