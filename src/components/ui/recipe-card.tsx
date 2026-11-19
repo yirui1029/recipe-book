@@ -84,6 +84,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: C.border,
+    height:260,
   },
   pressed: {
     opacity: 0.8,
@@ -102,6 +103,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 12,
     gap: 6,
+    flex:1,
   },
   title: {
     fontSize: 16,
@@ -109,10 +111,11 @@ const styles = StyleSheet.create({
     color: C.text,
   },
   description: {
-    fontSize: 13,
-    color: C.text,
-    opacity: 0.75,
-    lineHeight: 18,
+   fontSize: 13,
+  color: C.text,
+  opacity: 0.75,
+  lineHeight: 18,
+  minHeight: 36,
   },
   location: {
     flexDirection: 'row',

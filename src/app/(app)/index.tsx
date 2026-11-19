@@ -1,10 +1,11 @@
 
-import { useRouter } from 'expo-router';
+import {useFocusEffect, useRouter } from 'expo-router';
 import {
   FlatList,
   StyleSheet,
   Text,
   View,
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,22 +13,31 @@ import RecipeCard from '@/components/ui/recipe-card';
 import { RecipeColors as C } from '@/constants/theme';
 import { getRecipes } from '@/storage/recipes';
 import { Recipe } from '@/types/recipe';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [recipes, setRecipes] = useState<Recipe[]>();
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  useEffect(() => {
-    handleRecipes()
+  useFocusEffect(
+  useCallback(() => {
+    handleRecipes();
   }, [])
+);
   
   async function handleRecipes() {
-    const data = await getRecipes()
-    if (data) {
-      setRecipes(data)
-    }
+  setLoading(true);
+
+  try {
+    const data = await getRecipes();
+    setRecipes(data);
+  } catch (error) {
+    console.error('Erreur chargement recettes :', error);
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -54,12 +64,24 @@ export default function HomeScreen() {
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              Aucune recette pour le moment.
-            </Text>
-          </View>
-        }
+  loading ? (
+    <View style={styles.emptyContainer}>
+      <ActivityIndicator
+        size="large"
+        color={C.primary}
+      />
+      <Text style={styles.emptyText}>
+        Chargement des recettes...
+      </Text>
+    </View>
+  ) : (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyText}>
+        Aucune recette pour le moment.
+      </Text>
+    </View>
+  )
+}
         renderItem={({ item }) => (
           <View style={styles.cardWrapper}>
             <RecipeCard
