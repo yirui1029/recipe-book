@@ -1,28 +1,28 @@
-import { CameraView, useCameraPermissions } from "expo-camera";
-import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useCamera } from "@/hooks/use-camera";
+import { CameraView } from "expo-camera";
 import {
   ActivityIndicator,
-  Alert,
   Button,
   Image,
   Linking,
   Pressable,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { deletePhoto, setPendingPhoto } from "../../utils/photos";
 
-export default function CameraScreen() {
-  const router = useRouter();
+type CameraScreenProps = {
+  onPhoto: (uri: string) => void;
+  onCancel: () => void;
+};
+
+export default function CameraScreen({ onPhoto, onCancel }: CameraScreenProps) {
   const insets = useSafeAreaInsets();
-  const cameraRef = useRef<CameraView>(null);
-  const [permission, requestPermission] = useCameraPermissions();
-  const [cameraReady, setCameraReady] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  const {
+    cameraRef, permission, requestPermission, cameraReady, setCameraReady,
+    busy, previewUri, cancel, takePicture, retake, usePhoto,
+  } = useCamera({ onPhoto, onCancel });
 
   // 1. Permission en cours de chargement
   if (!permission) {
@@ -45,46 +45,10 @@ export default function CameraScreen() {
         ) : (
           <Button title="Ouvrir les réglages" onPress={() => Linking.openSettings()} />
         )}
-        <Button title="Annuler" onPress={() => router.back()} />
+        <Button title="Annuler" onPress={onCancel} />
       </View>
     );
   }
-
-  const takePicture = async () => {
-    if (!cameraRef.current || !cameraReady || busy) return;
-    setBusy(true);
-    try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
-      if (photo?.uri) setPreviewUri(photo.uri);
-    } catch {
-      Alert.alert("Erreur", "Impossible de prendre la photo. Réessayez.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const retake = () => {
-    deletePhoto(previewUri); // évite de laisser un fichier orphelin
-    setPreviewUri(null);
-    setCameraReady(false);
-  };
-
-  const usePhoto = async () => {
-    if (!previewUri || busy) return;
-    setBusy(true);
-    try {
-      setPendingPhoto(previewUri);
-      router.back();
-    } catch {
-      Alert.alert("Erreur", "Impossible d'enregistrer la photo.");
-      setBusy(false);
-    }
-  };
-
-  const cancel = () => {
-    deletePhoto(previewUri);
-    router.back();
-  };
 
   return (
     <View style={styles.container}>

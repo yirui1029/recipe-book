@@ -14,62 +14,6 @@ function getPhotosDirectory(): Directory {
   return directory;
 }
 
-function photoFile(recipeId: string): File {
-  return new File(getPhotosDirectory(), `${recipeId}.jpg`);
-}
-
-/** URI de la photo locale d'une recette, ou undefined si ce téléphone n'en a pas. */
-export function getLocalPhotoUri(recipeId: string): string | undefined {
-  try {
-    const file = photoFile(recipeId);
-    return file.exists ? file.uri : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Copie une photo (par exemple le fichier temporaire de la caméra) vers photos/<recipeId>.jpg.
- * Remplace la photo existante s'il y en a une, puis supprime le fichier source.
- */
-export async function savePhotoForRecipe(
-  recipeId: string,
-  sourceUri: string
-): Promise<string> {
-  const destination = photoFile(recipeId);
-  if (sourceUri === destination.uri) return destination.uri; // déjà la bonne photo
-
-  const source = new File(sourceUri);
-  if (!source.exists) {
-    throw new Error("La photo source est introuvable.");
-  }
-  if (destination.exists) {
-    destination.delete();
-  }
-
-  // "await" est sans effet si copy() est synchrone dans votre version du SDK
-  await source.copy(destination);
-
-  try {
-    source.delete();
-  } catch {
-    /* le cache sera vidé par le système */
-  }
-  return destination.uri;
-}
-
-/** Supprime la photo locale d'une recette. */
-export function deletePhotoForRecipe(recipeId: string): void {
-  try {
-    const file = photoFile(recipeId);
-    if (file.exists) {
-      file.delete();
-    }
-  } catch (error) {
-    console.warn("Suppression de la photo impossible :", error);
-  }
-}
-
 /** Supprime un fichier temporaire (par exemple « Reprendre » dans l'écran caméra). */
 export function deletePhoto(uri?: string | null): void {
   if (!uri) return;
@@ -97,4 +41,62 @@ export function consumePendingPhoto(): string | null {
   const uri = pendingPhotoUri;
   pendingPhotoUri = null;
   return uri;
+}
+
+/** Fichiers photo d'une recette : <id>-<timestamp>.jpg (et l'ancien format <id>.jpg). */
+function findPhotoFiles(recipeId: string): File[] {
+  const directory = getPhotosDirectory();
+  return directory
+    .list()
+    .filter(
+      (entry): entry is File =>
+        entry instanceof File &&
+        (entry.name.startsWith(`${recipeId}-`) || entry.name === `${recipeId}.jpg`)
+    )
+    // les timestamps ont la même longueur : le tri par nom donne le plus récent en dernier
+    .sort((a, b) => (a.name < b.name ? -1 : 1));
+}
+
+/** URI de la photo locale d'une recette, ou undefined si ce téléphone n'en a pas. */
+export function getLocalPhotoUri(recipeId: string): string | undefined {
+  try {
+    const files = findPhotoFiles(recipeId);
+    return files.length ? files[files.length - 1].uri : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Copie une photo vers un nouveau fichier unique, puis supprime les anciennes. */
+export async function savePhotoForRecipe(
+  recipeId: string,
+  sourceUri: string
+): Promise<string> {
+  const existing = findPhotoFiles(recipeId);
+  if (existing.some((f) => f.uri === sourceUri)) return sourceUri; // déjà la bonne photo
+
+  const source = new File(sourceUri);
+  if (!source.exists) {
+    throw new Error("La photo source est introuvable.");
+  }
+
+  const destination = new File(getPhotosDirectory(), `${recipeId}-${Date.now()}.jpg`);
+  await source.copy(destination);
+
+  // On supprime les anciennes versions seulement après la copie réussie
+  existing.forEach((f) => {
+    try { f.delete(); } catch { /* ignoré */ }
+  });
+  try { source.delete(); } catch { /* le cache sera vidé par le système */ }
+
+  return destination.uri;
+}
+
+/** Supprime toutes les photos locales d'une recette. */
+export function deletePhotoForRecipe(recipeId: string): void {
+  try {
+    findPhotoFiles(recipeId).forEach((f) => f.delete());
+  } catch (error) {
+    console.warn("Suppression de la photo impossible :", error);
+  }
 }

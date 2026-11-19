@@ -11,67 +11,27 @@ import RecipeButton from '@/components/ui/recipe-button';
 import { RecipeColors as C } from '@/constants/theme';
 import { createRecipe } from '@/storage/recipes';
 import { consumePendingPhoto } from '@/utils/photos';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 
 
-let cameraReturnPending = false;
 
 export default function RecipesScreen() {
   // Contrôle l'affichage du formulaire
   const [modalVisible, setModalVisible] = useState(false);
+  const openModal = () => setModalVisible(true);
+  const closeModal = () => setModalVisible(false);
+  const [pendingPhoto, setPendingPhoto] = useState<string | undefined>(undefined);
 
-  // Ouvrir le formulaire
-  const openModal = () => {
-    setModalVisible(true);
-  
-  };
-
-  // Fermer le formulaire
-  const closeModal = () => {
-    setModalVisible(false);
-  };
-
-
-  const router = useRouter();
-
-  useEffect(() => {
-
-
-  return () => {
-   
-  };
-}, []);
-
-const [photoUri, setPhotoUri] = useState<string>();
-
-
-// ouverture camera 
-const openCamera = () => {
-
-  cameraReturnPending  = true;
-
-  setModalVisible(false);
-  router.push('/camera');
-};
-
-// detecter le retour camera 
-useFocusEffect(
-  useCallback(() => {
-    
-if (!cameraReturnPending) return;
-
-cameraReturnPending = false;
-    const uri = consumePendingPhoto();
-
-
-    if (uri) {
-      setPhotoUri(uri);
-    }
-
-    setModalVisible(true);
-  }, [])
-);
+  useFocusEffect(
+    useCallback(() => {
+      const uri = consumePendingPhoto(); // lit puis vide
+      if (uri) {
+        setPendingPhoto(uri);
+        setModalVisible(true); // rouvre la modale
+      }
+    }, [])
+  );
 
 
 
@@ -112,8 +72,6 @@ cameraReturnPending = false;
         visible={modalVisible}
         onClose={closeModal}
         onSave={createRecipe}
-        photoUri={photoUri}
-        onOpenCamera={openCamera}
       />
     </View>
       </BotanicalBackground>
