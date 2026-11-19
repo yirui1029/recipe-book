@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,12 +11,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 
+import IngredientEditor from '@/components/ui/ingredient-editor';
+import RecipePhotoPicker from '@/components/ui/recipe-photo-picker';
 import { RecipeColors as C } from '@/constants/theme';
-import { UNITS } from '@/constants/units';
-import { usePhotoGallery } from '@/hooks/use-photo-gallery';
 import { useRecipeIngredient } from '@/hooks/use-recipe-ingredient';
 import type { NewRecipe, Recipe } from '@/types/recipe';
 import { RecipeFormValues } from '@/types/recipeForm';
@@ -37,9 +36,9 @@ function getInitialValues(recipe?: Recipe): RecipeFormValues {
 
 type CreateRecipeModalProps = {
   photoUri?: string;
-onOpenCamera: () => void;
   visible: boolean;
   onClose: () => void;
+  onOpenCamera: () => void;
   /**
    * Appelé à l'enregistrement, en création comme en modification.
    * C'est le parent qui choisit la méthode à appeler (création ou modification).
@@ -71,14 +70,7 @@ export default function CreateRecipeModal({
     setForm((current) => ({ ...current, [key]: value }));
     
   }
-  
-  const {
-    draft, updateDraft, resetDraft, hasPending,
-    suggestions, addIngredient, removeIngredient, getIngredientLabel,
-  } = useRecipeIngredient(form, updateForm);
-
-  const { chooseFromGallery } = usePhotoGallery();
-
+  const { hasPending, resetDraft } = useRecipeIngredient(form, updateForm);
   //récupérer la photo après le retour de la caméra
   useEffect(() => {
     if (photoUri) {
@@ -99,13 +91,6 @@ export default function CreateRecipeModal({
 
     resetDraft();
   }, [visible, isEditing, recipeToUpdate?.id]);
-
-    //etat pour la liste des ingrédients personnalisée
-
-  const handleGalleryPress = async () => {
-    const uri = await chooseFromGallery();
-    updateForm('photoUri', uri);
-  }
 
   const handleClose = () => {
     if (saving) return;
@@ -175,7 +160,7 @@ export default function CreateRecipeModal({
             <Pressable onPress={handleClose} disabled={saving}>
               <Ionicons name="close" size={26} color={C.text} />
             </Pressable>
-          </View>
+        </View>
 
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -184,53 +169,15 @@ export default function CreateRecipeModal({
             automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             contentContainerStyle={styles.form}
           >
-            {/* Photo : fonctionnalité existante conservée */}
         <View style={{ gap: 12 }}>
-  {form.photoUri && (
-    <>
-      <Image
-        source={{ uri: form.photoUri }}
-        style={styles.photoPreview}
-        resizeMode="cover"
-      />
-
-      <Pressable
-        style={styles.deletePhotoButton}
-        onPress={() => updateForm('photoUri', undefined)}
-        disabled={saving}
-      >
-        <Ionicons
-          name="trash-outline"
-          size={20}
-          color="#D32F2F"
-        />
-        <Text style={styles.deletePhotoText}>
-          Supprimer la photo
-        </Text>
-      </Pressable>
-    </>
-  )}
-
-  <View style={styles.photoActions}>
-    <Pressable
-      style={styles.cameraButton}
-      onPress={onOpenCamera}
-      disabled={saving}
-    >
-      <Ionicons name="camera-outline" size={22} color="#FFFFFF" />
-      <Text style={styles.cameraButtonText}>Caméra</Text>
-    </Pressable>
-
-    <Pressable
-      style={styles.galleryButton}
-      onPress={handleGalleryPress}
-      disabled={saving}
-    >
-      <Ionicons name="images-outline" size={22} color={C.primary} />
-      <Text style={styles.galleryButtonText}>Galerie</Text>
-    </Pressable>
-  </View>
-</View>
+          <RecipePhotoPicker
+            form={form}
+            updateForm={updateForm}
+            saving={saving}
+            onOpenCamera={onOpenCamera}
+          />
+        </View>
+        <View>
             <Text style={styles.label}>Nom de la recette *</Text>
             <TextInput
               style={styles.input}
@@ -254,85 +201,12 @@ export default function CreateRecipeModal({
             />
 
             {/* Ingrédient et suggestions : conservés */}
-            <Text style={styles.label}>Ingrédients *</Text>
-            <TextInput
-              style={styles.input}
-              value={draft.name}
-              onChangeText={(value) => updateDraft('name', value)}
-              placeholder="Rechercher un ingrédient..."
-              placeholderTextColor="#999999"
-              editable={!saving}
+            <IngredientEditor
+              form={form}
+              updateForm={updateForm}
+              saving={saving}
             />
 
-            {suggestions.length > 0 && (
-              <View style={styles.suggestions}>
-                {suggestions.map((ingredient) => (
-                  <Pressable
-                    key={ingredient}
-                    style={styles.suggestionItem}
-                    onPress={() => updateDraft('name', ingredient)}
-                    disabled={saving}
-                  >
-                    <Text style={styles.suggestionText}>{ingredient}</Text>
-                    <Ionicons name="checkmark-circle-outline" size={20} color={C.primary} />
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            {/* NOUVEAU : quantité et unité */}
-            <Text style={styles.label}>Quantité et unité *</Text>
-            <View style={styles.quantityRow}>
-              <TextInput
-                style={[styles.input, styles.quantityInput]}
-                value={draft.quantity}
-                onChangeText={(value) => updateDraft('quantity', value)}
-                placeholder="Ex. 200"
-                placeholderTextColor="#999999"
-                keyboardType="decimal-pad"
-                editable={!saving}
-              />
-              <Pressable
-                style={[styles.addButton, saving && styles.disabled]}
-                onPress={addIngredient}
-                disabled={saving}
-                accessibilityLabel="Ajouter l'ingrédient avec sa quantité"
-              >
-                <Ionicons name="add" size={25} color="#FFFFFF" />
-              </Pressable>
-            </View>
-
-            <View style={styles.unitButtons}>
-              {UNITS.map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => updateDraft('unit', item)}
-                  disabled={saving}
-                  style={[styles.unitButton, draft.unit === item && styles.unitButtonActive]}
-                >
-                  <Text style={[styles.unitText, draft.unit === item && styles.unitTextActive]}>
-                    {item}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-
-            {/* Ingrédients sélectionnés avec leurs quantités */}
-            <View style={styles.chips}>
-              {form.ingredients.map((ingredient, index) => (
-                <Pressable
-                  key={`${ingredient}-${index}`}
-                  style={styles.chip}
-                  onPress={() => removeIngredient(index)}
-                  disabled={saving}
-                >
-                  {/* FIXME : affiche la saisie en cours, pas la quantité de cet ingrédient (comportement d'origine conservé) */}
-                  <Text style={styles.chipText}>
-                    {getIngredientLabel(index)}
-                  </Text>
-                  <Ionicons name="close-circle" size={16} color={C.text} />
-                </Pressable>
-              ))}
             </View>
 
             <Text style={styles.label}>Lieu (facultatif)</Text>
@@ -387,33 +261,6 @@ const styles = StyleSheet.create({
   },
   heading: { fontSize: 24, fontWeight: 'bold', color: C.text },
   form: { paddingBottom: 40, gap: 12 },
-  photoBox: {
-    height: 150,
-    backgroundColor: C.background,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: C.border,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    gap: 8,
-  },
-  photo: { width: '100%', height: '100%' },
-  photoOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    gap: 8,
-  },
-  changePhotoText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
-  photoLabel: { color: C.primary, fontWeight: '600' },
   label: { fontSize: 14, fontWeight: '600', color: C.text, marginTop: 6 },
   input: {
     minHeight: 48,
@@ -426,8 +273,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   textArea: { minHeight: 90, paddingTop: 12 },
-  quantityRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  quantityInput: { flex: 1 },
+ 
   addButton: {
     width: 48,
     height: 48,
@@ -436,29 +282,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  unitButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  unitButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: '#FFFFFF',
-  },
-  unitButtonActive: { backgroundColor: C.primary, borderColor: C.primary },
-  unitText: { color: C.text, fontSize: 13 },
-  unitTextActive: { color: C.surface },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#E6EDE4',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  chipText: { color: C.text, fontSize: 13 },
   saveButton: {
     backgroundColor: C.primary,
     borderRadius: 28,
@@ -469,77 +292,4 @@ const styles = StyleSheet.create({
   },
   saveText: { color: C.surface, fontSize: 15, fontWeight: '600' },
   disabled: { opacity: 0.6 },
-  suggestions: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  suggestionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
- photoPreview: {
-  width: '100%',
-  height: 180,
-  borderRadius: 16,
-},
-deletePhotoButton: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 8,
-  borderWidth: 1,
-  borderColor: '#D32F2F',
-  borderRadius: 12,
-  paddingVertical: 12,
-},
-deletePhotoText: {
-  color: '#D32F2F',
-  fontWeight: '600',
-},
-photoActions: {
-  flexDirection: 'row',
-  gap: 10,
-},
-cameraButton: {
-  flex: 1,
-  backgroundColor: C.primary,
-  borderRadius: 12,
-  paddingVertical: 14,
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexDirection: 'row',
-  gap: 6,
-},
-cameraButtonText: {
-  color: '#FFFFFF',
-  fontWeight: '600',
-},
-galleryButton: {
-  flex: 1,
-  borderWidth: 1,
-  borderColor: C.primary,
-  borderRadius: 12,
-  paddingVertical: 14,
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexDirection: 'row',
-  gap: 6,
-},
-galleryButtonText: {
-  color: C.primary,
-  fontWeight: '600',
-},
-  suggestionText: { color: C.text, fontSize: 15 },
 });
-
-function usePhotoPicker(updateForm: <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => void): { chooseFromGallery: any; } {
-  throw new Error('Function not implemented.');
-}

@@ -5,8 +5,8 @@ import {
   View
 } from 'react-native';
 
-import CreateRecipeModal from '@/app/(app)/create-recipe-modal';
 import BotanicalBackground from '@/components/ui/botanical-background';
+import CreateRecipeModal from '@/components/ui/create-recipe-modal';
 import RecipeButton from '@/components/ui/recipe-button';
 import { RecipeColors as C } from '@/constants/theme';
 import { createRecipe } from '@/storage/recipes';
@@ -112,7 +112,7 @@ cameraReturnPending = false;
         visible={modalVisible}
         onClose={closeModal}
         onSave={createRecipe}
-         photoUri={photoUri}
+        photoUri={photoUri}
         onOpenCamera={openCamera}
       />
     </View>

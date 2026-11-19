@@ -4,7 +4,7 @@ import { RecipeFormValues } from '@/types/recipeForm';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 
-type SetForm = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => void;
+export type SetForm = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => void;
 
 const EMPTY_DRAFT = { name: '', quantity: '', unit: 'g' };
 
