@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,12 +17,10 @@ import {
 
 import { RecipeColors as C } from '@/constants/theme';
 import { UNITS } from '@/constants/units';
+import { usePhotoGallery } from '@/hooks/use-photo-gallery';
 import { useRecipeIngredient } from '@/hooks/use-recipe-ingredient';
 import type { NewRecipe, Recipe } from '@/types/recipe';
 import { RecipeFormValues } from '@/types/recipeForm';
-import { consumePendingPhoto } from '@/utils/photos';
-import * as ImagePicker from 'expo-image-picker';
-import { usePathname, useRouter } from 'expo-router';
 
 function getInitialValues(recipe?: Recipe): RecipeFormValues {
   if (!recipe) {
@@ -61,9 +59,6 @@ export default function CreateRecipeModal({
   photoUri,
   onOpenCamera,
 }: CreateRecipeModalProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const visitedCamera = useRef(false);
   // État unique du formulaire (création et modification)
   const [form, setForm] = useState<RecipeFormValues>(() =>
     getInitialValues(isEditing ? recipeToUpdate : undefined)
@@ -72,7 +67,6 @@ export default function CreateRecipeModal({
   
   // États d'interface
   const [saving, setSaving] = useState(false);
-  const [cameraOpen, setCameraOpen] = useState(false);
   const updateForm = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     
@@ -83,12 +77,14 @@ export default function CreateRecipeModal({
     suggestions, addIngredient, removeIngredient, getIngredientLabel,
   } = useRecipeIngredient(form, updateForm);
 
+  const { chooseFromGallery } = usePhotoGallery();
+
   //récupérer la photo après le retour de la caméra
-useEffect(() => {
-  if (photoUri) {
-    updateForm('photoUri', photoUri);
-  }
-}, [photoUri]);
+  useEffect(() => {
+    if (photoUri) {
+      updateForm('photoUri', photoUri);
+    }
+  }, [photoUri]);
 
   // À chaque ouverture : on repart de zéro (création) ou de la recette à modifier (édition).
   // La réinitialisation se fait à l'ouverture et non à la fermeture, pour ne pas vider
@@ -97,32 +93,19 @@ useEffect(() => {
   useEffect(() => {
     if (!visible) return;
     setForm({
-  ...getInitialValues(isEditing ? recipeToUpdate : undefined),
-  photoUri: photoUri,
-});
+      ...getInitialValues(isEditing ? recipeToUpdate : undefined),
+      photoUri: photoUri,
+    });
 
     resetDraft();
-    setCameraOpen(false);
-    visitedCamera.current = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, isEditing, recipeToUpdate?.id]);
 
     //etat pour la liste des ingrédients personnalisée
 
-  // Attendre un véritable passage par la route caméra avant de lire la photo.
-  useEffect(() => {
-    if (!cameraOpen) return;
-
-
-    if (visitedCamera.current) {
-      const uri = consumePendingPhoto();
-      if (uri) updateForm('photoUri', uri);
-      visitedCamera.current = false;
-      setCameraOpen(false);
-    }
-  }, [cameraOpen, pathname]);
-
-  
+  const handleGalleryPress = async () => {
+    const uri = await chooseFromGallery();
+    updateForm('photoUri', uri);
+  }
 
   const handleClose = () => {
     if (saving) return;
@@ -134,7 +117,6 @@ useEffect(() => {
 
     const cleanTitle = form.title.trim();
     const cleanDescription = form.description.trim();
-    const pendingName = draft.name.trim();
 
     if (hasPending) { Alert.alert('Ingrédient en cours', '...'); return; }
 
@@ -172,31 +154,6 @@ useEffect(() => {
       setSaving(false);
     }
   };
-
-  const openCamera = () => {
-    if (saving) return;
-    visitedCamera.current = false;
-    setCameraOpen(true);
-    router.push('/camera');
-  };
-
-  // choisir une photo dans le telephone de l'utilisateur 
- const chooseFromGallery = async () => {
-  try {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: false,
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets.length > 0) {
-      updateForm('photoUri', result.assets[0].uri);
-    }
-  } catch (error) {
-    console.error('Erreur galerie :', error);
-    Alert.alert('Erreur', "Impossible d'ouvrir la galerie.");
-  }
-};
 
   return (
     <Modal
@@ -266,7 +223,7 @@ useEffect(() => {
 
     <Pressable
       style={styles.galleryButton}
-      onPress={chooseFromGallery}
+      onPress={handleGalleryPress}
       disabled={saving}
     >
       <Ionicons name="images-outline" size={22} color={C.primary} />
@@ -582,3 +539,7 @@ galleryButtonText: {
 },
   suggestionText: { color: C.text, fontSize: 15 },
 });
+
+function usePhotoPicker(updateForm: <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => void): { chooseFromGallery: any; } {
+  throw new Error('Function not implemented.');
+}
