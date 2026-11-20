@@ -18,10 +18,10 @@ import CameraScreen from '@/components/ui/camera-screen';
 import IngredientEditor from '@/components/ui/ingredient-editor';
 import RecipePhotoPicker from '@/components/ui/recipe-photo-picker';
 import { RecipeColors as C } from '@/constants/theme';
+import { useLocation } from '@/hooks/use-location';
 import { useRecipeIngredient } from '@/hooks/use-recipe-ingredient';
 import type { NewRecipe, Recipe } from '@/types/recipe';
 import { RecipeFormValues } from '@/types/recipeForm';
-import { useLocation } from '@/hooks/use-location';
 
 function getInitialValues(recipe?: Recipe): RecipeFormValues {
   if (!recipe) {
@@ -43,10 +43,6 @@ type CreateRecipeModalProps = {
   photoUri?: string;
   visible: boolean;
   onClose: () => void;
-  /**
-   * Appelé à l'enregistrement, en création comme en modification.
-   * C'est le parent qui choisit la méthode à appeler (création ou modification).
-   */
   onSave: (recipe: NewRecipe) => Promise<unknown> | void;
 } & (
   | { isEditing?: false; recipeToUpdate?: undefined }
@@ -60,24 +56,12 @@ export default function CreateRecipeModal({
   isEditing = false,
   recipeToUpdate,
   }: CreateRecipeModalProps) {
-  // État unique du formulaire (création et modification)
   const [form, setForm] = useState<RecipeFormValues>(() =>
     getInitialValues(isEditing ? recipeToUpdate : undefined)
   );
-  //utiliser la methode de useLocation pour recuperer la position de l'utilisateur 
   const { getCurrentLocation } = useLocation();
-  //fonction pour recuperer et enregistrer la localisation de la formulaire 
-  const handleLocation = async () => {
-  const location = await getCurrentLocation();
 
-  if (!location) return;
-
-  updateForm('latitude', location.latitude);
-  updateForm('longitude', location.longitude);
-  updateForm('placeName', location.placeName);
-};
-
-  // États d'interface
+  
   const [saving, setSaving] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const updateForm = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => {
@@ -85,7 +69,7 @@ export default function CreateRecipeModal({
     
   }
   const { hasPending, resetDraft } = useRecipeIngredient(form, updateForm);
-
+  
   // À chaque ouverture : on repart de zéro (création) ou de la recette à modifier (édition).
   // La réinitialisation se fait à l'ouverture et non à la fermeture, pour ne pas vider
   // le formulaire pendant l'animation de fermeture.
@@ -95,11 +79,21 @@ export default function CreateRecipeModal({
     resetDraft();
   }, [visible, isEditing, recipeToUpdate?.id]);
 
+  const handleLocation = async () => {
+    const location = await getCurrentLocation();
+
+    if (!location) return;
+
+    updateForm('latitude', location.latitude);
+    updateForm('longitude', location.longitude);
+    updateForm('placeName', location.placeName);
+  };
+
   const handleClose = () => {
     if (saving) return;
     onClose();
   };
-
+  
   const handleSave = async () => {
     if (saving) return;
 
@@ -124,6 +118,8 @@ export default function CreateRecipeModal({
       ingredients: form.ingredients,
       photoUri: form.photoUri, // undefined si supprimée
       ...(form.placeName.trim() ? { placeName: form.placeName.trim() } : {}),
+      latitude: form.latitude,
+      longitude: form.longitude,
     };
 
     try {
@@ -181,63 +177,57 @@ export default function CreateRecipeModal({
           />
         </View>
         <View>
-            <Text style={styles.label}>Nom de la recette *</Text>
-            <TextInput
-              style={styles.input}
-              value={form.title}
-              onChangeText={(value) => updateForm('title', value)}
-              placeholder="Ex. Poulet Kung Pao"
-              placeholderTextColor="#999999"
-              editable={!saving}
+          <Text style={styles.label}>Nom de la recette *</Text>
+          <TextInput
+            style={styles.input}
+            value={form.title}
+            onChangeText={(value) => updateForm('title', value)}
+            placeholder="Ex. Poulet Kung Pao"
+            placeholderTextColor="#999999"
+            editable={!saving}
+          />
+          <Text style={styles.label}>Description *</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={form.description}
+            onChangeText={(value) => updateForm('description', value)}
+            placeholder="Décris ta recette..."
+            placeholderTextColor="#999999"
+            multiline
+            textAlignVertical="top"
+            editable={!saving}
+          />
+          {/* Ingrédient et suggestions : conservés */}
+          <IngredientEditor
+            form={form}
+            updateForm={updateForm}
+            saving={saving}
+          />
+          </View>
+          <Pressable
+            style={styles.locationButton}
+            onPress={handleLocation}
+          >
+            <Ionicons
+            name="location-outline"
+            size={20}
+            color={C.primary}
             />
+            <Text style={styles.locationButtonText}>
+              Utiliser ma position actuelle
+            </Text>
+          </Pressable>
 
-            <Text style={styles.label}>Description *</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={form.description}
-              onChangeText={(value) => updateForm('description', value)}
-              placeholder="Décris ta recette..."
-              placeholderTextColor="#999999"
-              multiline
-              textAlignVertical="top"
-              editable={!saving}
-            />
-
-            {/* Ingrédient et suggestions : conservés */}
-            <IngredientEditor
-              form={form}
-              updateForm={updateForm}
-              saving={saving}
-            />
-
-            </View>
-
-            <Pressable
-  style={styles.locationButton}
-  onPress={handleLocation}
->
-  <Ionicons
-    name="location-outline"
-    size={20}
-    color={C.primary}
-  />
-
-  <Text style={styles.locationButtonText}>
-    Utiliser ma position actuelle
-  </Text>
-</Pressable>
-
-{form.placeName ? (
-  <Text>
-    📍 {form.placeName}
-  </Text>
-) : null}
-
+        {form.placeName ? (
+          <Text>
+            📍 {form.placeName}
+          </Text>
+        ) : null}
             <Pressable
               style={[styles.saveButton, saving && styles.disabled]}
               onPress={handleSave}
               disabled={saving}
-            >
+              >
               {saving ? (
                 <ActivityIndicator color={C.surface} />
               ) : (
@@ -249,7 +239,7 @@ export default function CreateRecipeModal({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
-      <Modal
+    <Modal
       visible={cameraOpen}
       animationType="slide"
       onRequestClose={() => setCameraOpen(false)}
@@ -262,7 +252,7 @@ export default function CreateRecipeModal({
         }}
       />
     </Modal>
-    </Modal>
+  </Modal>
   );
 }
 

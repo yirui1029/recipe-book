@@ -1,21 +1,21 @@
 
-import {useFocusEffect, useRouter } from 'expo-router';
+import BotanicalBackground from '@/components/ui/botanical-background';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
+  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
-  View,
-  ActivityIndicator
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BotanicalBackground from '@/components/ui/botanical-background';
 
 import RecipeCard from '@/components/ui/recipe-card';
 import { RecipeColors as C } from '@/constants/theme';
 import { getRecipes } from '@/storage/recipes';
 import { Recipe } from '@/types/recipe';
-import { useCallback, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useCallback, useState } from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -23,10 +23,10 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   
   useFocusEffect(
-  useCallback(() => {
-    handleRecipes();
-  }, [])
-);
+    useCallback(() => {
+      handleRecipes();
+    }, [])
+   );
   
   async function handleRecipes() {
   setLoading(true);
