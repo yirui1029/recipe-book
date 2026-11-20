@@ -148,10 +148,6 @@ export default function RecipeDetailScreen() {
           onSave={handleUpdate}
           isEditing={true}
           recipeToUpdate={recipe}
-          onOpenCamera={() => {
-            setModalVisible(false);
-            router.push('/camera');
-          }}
         />
 
         {/* Bouton de suppression */}
